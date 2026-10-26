@@ -1,0 +1,61 @@
+{
+  "title": "DocumentTrack Infrastructure Sizing & Technical Specification",
+  "version": "2026.1",
+  "system_layers": [
+    {
+      "name": "Web/App Tier",
+      "technology": "Python (FastAPI) Docker container",
+      "purpose": "Interfaz de usuario, endpoints REST y orquestación"
+    },
+    {
+      "name": "Worker Tier",
+      "technology": "Asynchronous Workers + Gemini AI API",
+      "purpose": "Extracción OCR inteligente, validación de reglas de negocio y verificación XML/CUFE"
+    },
+    {
+      "name": "Data Tier",
+      "technology": "PostgreSQL (Producción) / SQLite (Dev local)",
+      "purpose": "Almacenamiento transaccional de metadatos, estado y configuraciones"
+    },
+    {
+      "name": "Storage Tier",
+      "technology": "AWS S3 / GCP Cloud Storage",
+      "purpose": "Almacenamiento de objetos para PDFs escaneados, comprobantes y XMLs"
+    }
+  ],
+  "tiers": [
+    {
+      "tier_name": "Tier 1: Básico",
+      "monthly_volume_min": 0,
+      "monthly_volume_max": 5000,
+      "app_worker_spec": "1 Instancia (2 vCPU, 4GB RAM)",
+      "database_spec": "1 Instancia PostgreSQL (2 vCPU, 4GB RAM, 50GB SSD)",
+      "storage_policy": "~10 GB / mes (S3 Standard o GCP Standard)",
+      "network_security": "Application Load Balancer simple (AWS ALB)"
+    },
+    {
+      "tier_name": "Tier 2: Intermedio",
+      "monthly_volume_min": 5000,
+      "monthly_volume_max": 50000,
+      "app_worker_spec": "2 Instancias (4 vCPU, 8GB RAM c/u) con Auto-Scaling",
+      "database_spec": "Instancia PostgreSQL Activo/Pasivo Multi-AZ (4 vCPU, 8GB RAM, 100GB IOPS SSD)",
+      "storage_policy": "~100 GB / mes + Transición a Cold Storage (Glacier) a los 90 días",
+      "network_security": "ALB + HAProxy para Rate Limiting y reglas L7"
+    },
+    {
+      "tier_name": "Tier 3: Empresarial",
+      "monthly_volume_min": 50000,
+      "monthly_volume_max": 999999999,
+      "app_worker_spec": "Cluster Kubernetes (GKE/EKS) con mínimo 3 Nodos (8 vCPU, 16GB RAM c/u)",
+      "database_spec": "Cluster PostgreSQL de Alta Disponibilidad (8 vCPU, 32GB RAM, 500GB SSD IOPS)",
+      "storage_policy": "> 500 GB / mes + Almacenamiento Inmutable WORM para auditoría fiscal",
+      "network_security": "API Gateway / WAF perimetral + CDN para assets estáticos"
+    }
+  ],
+  "technical_guidelines": {
+    "gemini_integration": "Despliegue en regiones de baja latencia hacia Google Cloud (o AWS us-east-1). Manejo de concurrencia con colas Redis y reintentos exponenciales.",
+    "data_lifecycle": "Promedio 200KB-500KB por paquete (PDF+XML). Transición Hot a Cold a los 30-90 días tras cierre contable.",
+    "security_iso27001": "Cifrado AES-256 en reposo, TLS 1.2+ en tránsito, Multi-AZ para Tier 2 y 3, trazabilidad total de auditoría.",
+    "ci_cd": "GitHub Actions con autenticación OIDC hacia ECR/Artifact Registry y escaneo de vulnerabilidades en imágenes Docker."
+  }
+}

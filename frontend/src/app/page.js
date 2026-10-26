@@ -1,0 +1,1414 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import {
+  Inbox,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  Send,
+  Building2,
+  Mail,
+  ShieldCheck,
+  Server,
+  Layers,
+  Sparkles,
+  RefreshCw,
+  Plus,
+  FileText,
+  DollarSign,
+  Clock,
+  ArrowRight,
+  Database,
+  Cloud,
+  Copy,
+  Check,
+  ExternalLink,
+  Pencil,
+  Save
+} from "lucide-react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+export default function SalesCommandCenter() {
+  const [activeTab, setActiveTab] = useState("inbox"); // "inbox" | "kanban" | "catalog"
+  const [pendingGates, setPendingGates] = useState([]);
+  const [opportunities, setOpportunities] = useState([]);
+  const [catalog, setCatalog] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [apiConnected, setApiConnected] = useState(false);
+  const [selectedOpp, setSelectedOpp] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopyOutreach = (gate) => {
+    const textToCopy = `Asunto: ${gate.key_metrics?.subject || gate.headline || "Propuesta de Transformación INNOVAIT"}\n\n${gate.recommendation_summary}\n\nCanal: Correo Electrónico Corporativo\nRemitente: Equipo Comercial INNOVAIT`;
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(textToCopy);
+      setCopiedId(gate.opportunity_id);
+      setTimeout(() => setCopiedId(null), 2500);
+    }
+  };
+
+  // Modal de Decisión Humana (Modify / Feedback)
+  const [modifyModalOpen, setModifyModalOpen] = useState(false);
+  const [modifyTarget, setModifyTarget] = useState(null);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [discountValue, setDiscountValue] = useState("");
+
+  // Modal Nueva Oportunidad
+  const [newOppModalOpen, setNewOppModalOpen] = useState(false);
+  const [newCompany, setNewCompany] = useState("");
+  const [newWebsite, setNewWebsite] = useState("");
+  const [newCountry, setNewCountry] = useState("Colombia");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Modal Edición de Precios de Catálogo
+  const [editCatalogModalOpen, setEditCatalogModalOpen] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState(null);
+  const [pricesSaving, setPricesSaving] = useState(false);
+  const [serviceDescriptions, setServiceDescriptions] = useState({
+    DOC_MANAGER: "Plataforma contenerizada en Docker (Web Tier, Worker Tier, Data Tier y Storage Tier) para recepción de facturas, validación XML/CUFE y extracción OCR con modelos de IA.",
+    DATA_HYGIENE: "Perfilado, deduplicación y saneamiento de registros inconsistentes, normalización de datos maestros y pipelines limpios para migración segura.",
+    CLOUD_INFRA: "Modernización a contenedores, landing zones seguras, alta disponibilidad, copias inmutables, FinOps y monitoreo proactivo 24/7.",
+    AI_AUTOMATION: "RAG corporativo sobre documentos y normativas, flujos de trabajo autónomos con n8n/APIs y extracción no estructurada de datos."
+  });
+  const [currentEditingSummary, setCurrentEditingSummary] = useState("");
+
+  const [tierLabels, setTierLabels] = useState({
+    doc_starter: "Tier Starter (15 usuarios)",
+    doc_enterprise: "Tier Enterprise (100 usuarios)",
+    doc_custom: "Tier Corporate Custom (500+ usuarios)",
+    data_audit: "Auditoría & Plan (2 semanas)",
+    data_standard: "Depuración Standard (hasta 500k registros)",
+    data_enterprise: "Migración Enterprise & Refactorización",
+    cloud_setup: "Assessment & Setup Inicial",
+    cloud_managed: "Managed Cloud Support",
+    cloud_devops: "DevOps & SRE Enterprise 24/7",
+    ai_poc: "PoC Fast Track (2 semanas)",
+    ai_agentic: "Sistema Agéntico Productivo (6 semanas)",
+    ai_enterprise: "Ecosistema de IA Enterprise (Multi-agente)"
+  });
+
+  const [customPrices, setCustomPrices] = useState({
+    doc_starter_monthly: 490,
+    doc_starter_impl: 1800,
+    doc_enterprise_monthly: 1500,
+    doc_enterprise_impl: 4500,
+    doc_custom_monthly: 3200,
+    doc_custom_impl: 9500,
+    data_audit: 2500,
+    data_standard: 6800,
+    data_enterprise: 14500,
+    cloud_setup: 3800,
+    cloud_managed: 1200,
+    cloud_devops: 2800,
+    ai_poc: 3500,
+    ai_agentic: 8900,
+    ai_enterprise: 18500
+  });
+
+  const handleOpenEditCatalog = (serviceId) => {
+    setEditingServiceId(serviceId);
+    setCurrentEditingSummary(serviceDescriptions[serviceId] || "");
+    setEditCatalogModalOpen(true);
+  };
+
+  const handleSavePrices = async () => {
+    setPricesSaving(true);
+    try {
+      let payloadTiers = {};
+      if (editingServiceId === "DOC_MANAGER") {
+        payloadTiers = {
+          STARTER: { name: tierLabels.doc_starter, monthly_fee_usd: customPrices.doc_starter_monthly, max_users: 15, storage_gb: 100, implementation_fee_usd: customPrices.doc_starter_impl },
+          ENTERPRISE: { name: tierLabels.doc_enterprise, monthly_fee_usd: customPrices.doc_enterprise_monthly, max_users: 100, storage_gb: 1000, implementation_fee_usd: customPrices.doc_enterprise_impl },
+          CORPORATE_CUSTOM: { name: tierLabels.doc_custom, monthly_fee_usd: customPrices.doc_custom_monthly, max_users: 500, storage_gb: 5000, implementation_fee_usd: customPrices.doc_custom_impl }
+        };
+      } else if (editingServiceId === "DATA_HYGIENE") {
+        payloadTiers = {
+          AUDIT_AND_PLAN: { name: tierLabels.data_audit, fixed_fee_usd: customPrices.data_audit, duration_weeks: 2, deliverables: "Informe exhaustivo de anomalías y plan de remediación" },
+          STANDARD_CLEANSING: { name: tierLabels.data_standard, fixed_fee_usd: customPrices.data_standard, duration_weeks: 4, deliverables: "Depuración hasta 500,000 registros, normalización y pipelines de carga limpia" },
+          ENTERPRISE_MIGRATION: { name: tierLabels.data_enterprise, fixed_fee_usd: customPrices.data_enterprise, duration_weeks: 8, deliverables: "Limpieza profunda masiva, refactorización de esquemas y migración de BD crítica" }
+        };
+      } else if (editingServiceId === "CLOUD_INFRA") {
+        payloadTiers = {
+          CLOUD_ASSESSMENT_AND_SETUP: { name: tierLabels.cloud_setup, fixed_fee_usd: customPrices.cloud_setup, duration_weeks: 3, deliverables: "Diseño de arquitectura, landing zone segura y despliegue inicial" },
+          MANAGED_CLOUD_SUPPORT: { name: tierLabels.cloud_managed, monthly_fee_usd: customPrices.cloud_managed, coverage: "Monitoreo 24/7, parches, backups y hasta 20 horas mensuales de ingeniería cloud" },
+          ENTERPRISE_DEVOPS_MANAGED: { name: tierLabels.cloud_devops, monthly_fee_usd: customPrices.cloud_devops, coverage: "SRE dedicado, CI/CD, FinOps continuo y soporte con SLA de 15 minutos ante incidentes críticos" }
+        };
+      } else if (editingServiceId === "AI_AUTOMATION") {
+        payloadTiers = {
+          POC_FAST_TRACK: { name: tierLabels.ai_poc, fixed_fee_usd: customPrices.ai_poc, duration_weeks: 2, deliverables: "Prueba de concepto funcional sobre caso de uso delimitado" },
+          PRODUCTION_AGENTIC_SYSTEM: { name: tierLabels.ai_agentic, fixed_fee_usd: customPrices.ai_agentic, duration_weeks: 6, deliverables: "Sistema de agentes RAG o automatización productiva integrado a BD/ERP" },
+          ENTERPRISE_AI_ECOSYSTEM: { name: tierLabels.ai_enterprise, fixed_fee_usd: customPrices.ai_enterprise, duration_weeks: 10, deliverables: "Múltiples agentes orquestados, fine-tuning/RAG avanzado, observabilidad y soporte continuo" }
+        };
+      }
+
+      if (editingServiceId) {
+        const res = await fetch(`${API_BASE}/catalog/service/${editingServiceId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            summary: currentEditingSummary,
+            pricing_tiers: payloadTiers
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error(`El backend devolvió código de error ${res.status}`);
+        }
+        setApiConnected(true);
+      }
+
+      setServiceDescriptions(prev => ({ ...prev, [editingServiceId]: currentEditingSummary }));
+      setEditCatalogModalOpen(false);
+      alert("¡Guardado permanente exitoso! Los cambios fueron registrados en backend/app/knowledge/services_catalog.json y en el sistema de cotización.");
+    } catch (e) {
+      alert("⚠️ Error al guardar: No se pudo conectar con el Backend (http://localhost:8000).\n\nPara que los cambios se guarden de forma permanente en el archivo services_catalog.json, asegúrate de tener la consola del backend ejecutándose con 'python main.py'.");
+    } finally {
+      setPricesSaving(false);
+    }
+  };
+
+  // Cargar datos de Pipeline (Gates y Oportunidades) de forma periódica
+  const fetchPipelineData = async () => {
+    try {
+      const [gatesRes, oppsRes] = await Promise.all([
+        fetch(`${API_BASE}/gates/pending`).catch(() => null),
+        fetch(`${API_BASE}/opportunities/`).catch(() => null),
+      ]);
+
+      if (gatesRes && gatesRes.ok) {
+        const gatesData = await gatesRes.json();
+        setPendingGates(gatesData);
+        setApiConnected(true);
+      } else {
+        setApiConnected(false);
+        _loadFallbackData();
+      }
+
+      if (oppsRes && oppsRes.ok) {
+        const oppsData = await oppsRes.json();
+        setOpportunities(oppsData);
+      }
+    } catch (e) {
+      setApiConnected(false);
+    }
+  };
+
+  // Cargar datos del Catálogo Oficial (solo al inicio o al guardar)
+  const fetchCatalogData = async () => {
+    try {
+      const catRes = await fetch(`${API_BASE}/catalog/`).catch(() => null);
+      if (catRes && catRes.ok) {
+        const catData = await catRes.json();
+        setCatalog(catData);
+        if (catData && catData.services) {
+          const descMap = {};
+          const pricesUpdate = {};
+          const tierLabelsUpdate = {};
+          catData.services.forEach(s => {
+            if (s.id && s.summary) descMap[s.id] = s.summary;
+            const pt = s.pricing_tiers || {};
+            if (s.id === "DOC_MANAGER") {
+              if (pt.STARTER?.name) tierLabelsUpdate.doc_starter = pt.STARTER.name;
+              if (pt.STARTER?.monthly_fee_usd) pricesUpdate.doc_starter_monthly = pt.STARTER.monthly_fee_usd;
+              if (pt.STARTER?.implementation_fee_usd) pricesUpdate.doc_starter_impl = pt.STARTER.implementation_fee_usd;
+              if (pt.ENTERPRISE?.name) tierLabelsUpdate.doc_enterprise = pt.ENTERPRISE.name;
+              if (pt.ENTERPRISE?.monthly_fee_usd) pricesUpdate.doc_enterprise_monthly = pt.ENTERPRISE.monthly_fee_usd;
+              if (pt.ENTERPRISE?.implementation_fee_usd) pricesUpdate.doc_enterprise_impl = pt.ENTERPRISE.implementation_fee_usd;
+              if (pt.CORPORATE_CUSTOM?.name) tierLabelsUpdate.doc_custom = pt.CORPORATE_CUSTOM.name;
+              if (pt.CORPORATE_CUSTOM?.monthly_fee_usd) pricesUpdate.doc_custom_monthly = pt.CORPORATE_CUSTOM.monthly_fee_usd;
+              if (pt.CORPORATE_CUSTOM?.implementation_fee_usd) pricesUpdate.doc_custom_impl = pt.CORPORATE_CUSTOM.implementation_fee_usd;
+            } else if (s.id === "DATA_HYGIENE") {
+              if (pt.AUDIT_AND_PLAN?.name) tierLabelsUpdate.data_audit = pt.AUDIT_AND_PLAN.name;
+              if (pt.AUDIT_AND_PLAN?.fixed_fee_usd) pricesUpdate.data_audit = pt.AUDIT_AND_PLAN.fixed_fee_usd;
+              if (pt.STANDARD_CLEANSING?.name) tierLabelsUpdate.data_standard = pt.STANDARD_CLEANSING.name;
+              if (pt.STANDARD_CLEANSING?.fixed_fee_usd) pricesUpdate.data_standard = pt.STANDARD_CLEANSING.fixed_fee_usd;
+              if (pt.ENTERPRISE_MIGRATION?.name) tierLabelsUpdate.data_enterprise = pt.ENTERPRISE_MIGRATION.name;
+              if (pt.ENTERPRISE_MIGRATION?.fixed_fee_usd) pricesUpdate.data_enterprise = pt.ENTERPRISE_MIGRATION.fixed_fee_usd;
+            } else if (s.id === "CLOUD_INFRA") {
+              if (pt.CLOUD_ASSESSMENT_AND_SETUP?.name) tierLabelsUpdate.cloud_setup = pt.CLOUD_ASSESSMENT_AND_SETUP.name;
+              if (pt.CLOUD_ASSESSMENT_AND_SETUP?.fixed_fee_usd) pricesUpdate.cloud_setup = pt.CLOUD_ASSESSMENT_AND_SETUP.fixed_fee_usd;
+              if (pt.MANAGED_CLOUD_SUPPORT?.name) tierLabelsUpdate.cloud_managed = pt.MANAGED_CLOUD_SUPPORT.name;
+              if (pt.MANAGED_CLOUD_SUPPORT?.monthly_fee_usd) pricesUpdate.cloud_managed = pt.MANAGED_CLOUD_SUPPORT.monthly_fee_usd;
+              if (pt.ENTERPRISE_DEVOPS_MANAGED?.name) tierLabelsUpdate.cloud_devops = pt.ENTERPRISE_DEVOPS_MANAGED.name;
+              if (pt.ENTERPRISE_DEVOPS_MANAGED?.monthly_fee_usd) pricesUpdate.cloud_devops = pt.ENTERPRISE_DEVOPS_MANAGED.monthly_fee_usd;
+            } else if (s.id === "AI_AUTOMATION") {
+              if (pt.POC_FAST_TRACK?.name) tierLabelsUpdate.ai_poc = pt.POC_FAST_TRACK.name;
+              if (pt.POC_FAST_TRACK?.fixed_fee_usd) pricesUpdate.ai_poc = pt.POC_FAST_TRACK.fixed_fee_usd;
+              if (pt.PRODUCTION_AGENTIC_SYSTEM?.name) tierLabelsUpdate.ai_agentic = pt.PRODUCTION_AGENTIC_SYSTEM.name;
+              if (pt.PRODUCTION_AGENTIC_SYSTEM?.fixed_fee_usd) pricesUpdate.ai_agentic = pt.PRODUCTION_AGENTIC_SYSTEM.fixed_fee_usd;
+              if (pt.ENTERPRISE_AI_ECOSYSTEM?.name) tierLabelsUpdate.ai_enterprise = pt.ENTERPRISE_AI_ECOSYSTEM.name;
+              if (pt.ENTERPRISE_AI_ECOSYSTEM?.fixed_fee_usd) pricesUpdate.ai_enterprise = pt.ENTERPRISE_AI_ECOSYSTEM.fixed_fee_usd;
+            }
+          });
+          setServiceDescriptions(prev => ({ ...prev, ...descMap }));
+          setCustomPrices(prev => ({ ...prev, ...pricesUpdate }));
+          setTierLabels(prev => ({ ...prev, ...tierLabelsUpdate }));
+        }
+      }
+    } catch (e) {
+      console.warn("Backend FastAPI offline para catálogo:", e);
+    }
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    await Promise.all([fetchPipelineData(), fetchCatalogData()]);
+    setLoading(false);
+  };
+
+  const _loadFallbackData = () => {
+    // Datos demostrativos para previsualización inmediata
+    const samplePending = [
+      {
+        opportunity_id: "opp_demo_001",
+        company_name: "Transportes Interandinos S.A.",
+        gate_type: "GATE_1_TARGET",
+        status: "PENDING",
+        headline: "Validación de Target: Transportes Interandinos S.A.",
+        agent_name: "Scraper & Enricher Agent (Apollo/Hunter)",
+        recommendation_summary: "Ajuste ICP 92/100. Stack legacy detectado (Windows Server + SQL Server desnormalizado). Gran fit para INNOVAIT DocManager.",
+        key_metrics: { fit_score: 92, stack: ["Windows Server", "SQL Server 2012", "Carpetas SMB"] },
+        waiting_since: new Date().toISOString(),
+      },
+      {
+        opportunity_id: "opp_demo_002",
+        company_name: "Seguros & Finanzas del Caribe",
+        gate_type: "GATE_2_OUTREACH",
+        status: "PENDING",
+        headline: "Aprobación de Primer Contacto: Seguros & Finanzas del Caribe",
+        agent_name: "SDR / Outreach Agent",
+        recommendation_summary: "Hola Carlos Mendoza,\n\nNotamos que en Seguros & Finanzas del Caribe gestionan un volumen superior a 15,000 facturas y pólizas mensuales donde la validación de XML/CUFE y la extracción OCR manual representan demoras operativas.\n\nCon nuestra plataforma DocumentTrack (desplegada en AWS/GCP bajo arquitectura ISO 27001), automatizamos la ingesta de documentos y la verificación tributaria en segundos con modelos de IA, reduciendo costos de almacenamiento mediante políticas de archivo frío (Glacier).\n\n¿Tendrías 15 minutos este jueves para mostrarte cómo opera sin alterar sus sistemas actuales?",
+        key_metrics: { channel: "EMAIL", contact: "Carlos Mendoza (Head of IT)", subject: "Optimización de validación CUFE y extracción OCR en Seguros del Caribe" },
+        waiting_since: new Date().toISOString(),
+      },
+      {
+        opportunity_id: "opp_demo_003",
+        company_name: "Clínica Médica de Especialidades",
+        gate_type: "GATE_4_ARCHITECT",
+        status: "PENDING",
+        headline: "Revisión de Arquitectura y Pricing: Clínica Médica",
+        agent_name: "Solutions Architect Agent (RAG DocumentTrack)",
+        recommendation_summary: "Propuesta DocumentTrack Tier 2 (Intermedio: 5k-50k docs/mes): 2 Instancias App/Worker con Auto-Scaling, PostgreSQL Multi-AZ Activo/Pasivo (4 vCPU, 8GB RAM, 100GB IOPS), S3 Hot + transición Glacier a 90 días y cifrado AES-256.",
+        key_metrics: { implementation_fee_usd: 8500, annual_license_usd: 18000, discount_percentage: 10, sizing_tier: "Tier 2: Intermedio", compliance: "ISO 27001" },
+        waiting_since: new Date().toISOString(),
+      }
+    ];
+    setPendingGates(samplePending);
+  };
+
+  useEffect(() => {
+    fetchData();
+    // Refrescar únicamente pipeline y compuertas en segundo plano para no sobreescribir el catálogo
+    const interval = setInterval(() => {
+      fetchPipelineData();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Manejar decisiones Human-in-the-Loop
+  const handleDecision = async (oppId, action, feedback = null, modifications = null) => {
+    setSubmitting(true);
+    try {
+      const payload = {
+        action: action, // "APPROVE" | "MODIFY" | "OVERRIDE"
+        feedback: feedback,
+        modifications: modifications,
+        user_name: "Director Comercial (Comando Central)"
+      };
+
+      if (apiConnected) {
+        const res = await fetch(`${API_BASE}/gates/${oppId}/decision`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          await fetchData();
+        }
+      } else {
+        // Simulación interactiva local
+        setPendingGates(prev => prev.filter(p => p.opportunity_id !== oppId));
+        alert(`Decisión [${action}] registrada exitosamente para la oportunidad.`);
+      }
+    } catch (e) {
+      alert("Error enviando decisión al orquestador.");
+    } finally {
+      setSubmitting(false);
+      setModifyModalOpen(false);
+      setFeedbackText("");
+      setDiscountValue("");
+    }
+  };
+
+  // Crear nueva oportunidad
+  const handleCreateOpportunity = async (e) => {
+    e.preventDefault();
+    if (!newCompany) return;
+    setSubmitting(true);
+
+    try {
+      if (apiConnected) {
+        const res = await fetch(`${API_BASE}/opportunities/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            company_name: newCompany,
+            website: newWebsite,
+            country: newCountry
+          })
+        });
+        if (res.ok) {
+          await fetchData();
+          setNewOppModalOpen(false);
+          setNewCompany("");
+          setNewWebsite("");
+        }
+      } else {
+        const fakeId = `opp_demo_${Date.now()}`;
+        setPendingGates(prev => [
+          {
+            opportunity_id: fakeId,
+            company_name: newCompany,
+            gate_type: "GATE_1_TARGET",
+            status: "PENDING",
+            headline: `Validación de Target: ${newCompany}`,
+            agent_name: "Scraper & Enricher Agent (Apollo/Hunter)",
+            recommendation_summary: "Perfilado completado con fuentes externas. ICP Fit Score calculado.",
+            key_metrics: { fit_score: 87 },
+            waiting_since: new Date().toISOString()
+          },
+          ...prev
+        ]);
+        setNewOppModalOpen(false);
+        setNewCompany("");
+        setNewWebsite("");
+      }
+    } catch (e) {
+      alert("Error creando oportunidad.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getGateBadge = (gateType) => {
+    switch (gateType) {
+      case "GATE_1_TARGET":
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">Gate 1: Validación Target</span>;
+      case "GATE_2_OUTREACH":
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-200">Gate 2: Aprobación Outreach</span>;
+      case "GATE_3_DISCOVERY":
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200">Gate 3: Validación Alcance BANT</span>;
+      case "GATE_4_ARCHITECT":
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">Gate 4: Arquitectura & Pricing</span>;
+      case "GATE_5_LEGAL":
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200">Gate 5: Firma & Términos Legales</span>;
+      default:
+        return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">{gateType}</span>;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Top Navbar */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 via-indigo-600 to-cyan-500 flex items-center justify-center text-white font-bold text-xl shadow-md">
+              IN
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">INNOVAIT</h1>
+                <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-medium border border-blue-200">
+                  Sales HITL Engine
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">Command Center Multi-Agente B2B • LangGraph + Gemini</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 text-xs">
+              <span className={`w-2.5 h-2.5 rounded-full ${apiConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`}></span>
+              <span className="text-slate-600 font-medium">
+                {apiConnected ? "Backend LangGraph Conectado (Port 8000)" : "Modo Interactivo Local"}
+              </span>
+            </div>
+
+            <button
+              onClick={() => setNewOppModalOpen(true)}
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nuevo Prospecto</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+        {/* Metric Cards Banner */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Aprobaciones Pendientes</p>
+              <h3 className="text-2xl font-black text-amber-600 mt-1">{pendingGates.length}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Requieren decisión humana</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Flota de Agentes</p>
+              <h3 className="text-2xl font-black text-slate-900 mt-1">5 Agentes</h3>
+              <p className="text-xs text-emerald-600 mt-0.5 flex items-center">
+                <Sparkles className="w-3 h-3 mr-1" /> Gemini 2.5 Flash / Pro
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Layers className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Producto Insignia</p>
+              <h3 className="text-lg font-black text-slate-900 mt-1">DocManager</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Gestión Documental & OCR</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <FileText className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Enriquecimiento</p>
+              <h3 className="text-lg font-black text-slate-900 mt-1">Apollo + Hunter</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Stack & Emails Verificados</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center">
+              <Database className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-slate-200 space-x-6 mb-6">
+          <button
+            onClick={() => setActiveTab("inbox")}
+            className={`pb-3 text-sm font-bold flex items-center space-x-2 border-b-2 transition-all ${
+              activeTab === "inbox"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Inbox className="w-4 h-4" />
+            <span>Bandeja de Aprobaciones (Approval Inbox)</span>
+            {pendingGates.length > 0 && (
+              <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800 font-bold">
+                {pendingGates.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab("kanban")}
+            className={`pb-3 text-sm font-bold flex items-center space-x-2 border-b-2 transition-all ${
+              activeTab === "kanban"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Pipeline Kanban</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("catalog")}
+            className={`pb-3 text-sm font-bold flex items-center space-x-2 border-b-2 transition-all ${
+              activeTab === "catalog"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Server className="w-4 h-4" />
+            <span>Catálogo de Soluciones INNOVAIT</span>
+          </button>
+        </div>
+
+        {/* TAB 1: APPROVAL INBOX */}
+        {activeTab === "inbox" && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm text-slate-600">
+                Oportunidades pausadas en compuertas de decisión. Cada acción dispara inmediatamente el siguiente agente o re-ejecuta con feedback.
+              </p>
+              <button
+                onClick={fetchData}
+                className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Actualizar</span>
+              </button>
+            </div>
+
+            {pendingGates.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-slate-900">¡Bandeja al día! No hay compuertas pendientes</h3>
+                <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
+                  Todos los prospectos y propuestas han sido aprobados o procesados por los agentes. Puedes crear un nuevo prospecto para iniciar el ciclo.
+                </p>
+                <button
+                  onClick={() => setNewOppModalOpen(true)}
+                  className="mt-4 inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Procesar Nuevo Prospecto</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {pendingGates.map((gate) => (
+                  <div
+                    key={gate.opportunity_id}
+                    className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Building2 className="w-5 h-5 text-blue-600" />
+                          <h3 className="text-lg font-bold text-slate-900">{gate.company_name}</h3>
+                          {getGateBadge(gate.gate_type)}
+                        </div>
+                        <span className="text-xs text-slate-400 flex items-center">
+                          <Clock className="w-3.5 h-3.5 mr-1" />
+                          Pausado en Gate
+                        </span>
+                      </div>
+
+                      <div className="mt-3 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                        <div className="flex items-center space-x-2 mb-1.5">
+                          <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Agente Responsable:</span>
+                          <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                            {gate.agent_name}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed font-normal">
+                          {gate.recommendation_summary}
+                        </p>
+
+                        {/* Métricas clave detectadas */}
+                        {gate.key_metrics && Object.keys(gate.key_metrics).length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-slate-200/60 flex flex-wrap gap-2 text-xs text-slate-600">
+                            {gate.key_metrics.fit_score && (
+                              <span className="bg-white px-2.5 py-1 rounded-md border border-slate-200 font-semibold text-emerald-700">
+                                Match ICP: {gate.key_metrics.fit_score}/100
+                              </span>
+                            )}
+                            {gate.key_metrics.implementation_fee_usd && (
+                              <span className="bg-white px-2.5 py-1 rounded-md border border-slate-200 font-semibold text-slate-800">
+                                Impl Fee: USD ${gate.key_metrics.implementation_fee_usd.toLocaleString()}
+                              </span>
+                            )}
+                            {gate.key_metrics.annual_license_usd && (
+                              <span className="bg-white px-2.5 py-1 rounded-md border border-slate-200 font-semibold text-slate-800">
+                                Licencia Anual: USD ${gate.key_metrics.annual_license_usd.toLocaleString()}
+                              </span>
+                            )}
+                            {gate.key_metrics.channel && (
+                              <span className="bg-white px-2.5 py-1 rounded-md border border-slate-200 font-semibold text-purple-700">
+                                Canal: {gate.key_metrics.channel}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Barra de Acciones Humanas (HITL) */}
+                    <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+                      <div className="text-xs text-slate-400">
+                        ID: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-600">{gate.opportunity_id}</code>
+                      </div>
+
+                      <div className="flex items-center space-x-3">
+                        {gate.gate_type === "GATE_2_OUTREACH" && (
+                          <button
+                            onClick={() => handleCopyOutreach(gate)}
+                            className="px-3.5 py-2 rounded-xl text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all flex items-center space-x-1.5 shadow-sm"
+                          >
+                            {copiedId === gate.opportunity_id ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="text-emerald-700">¡Copiado al Portapapeles!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copiar Correo Listo</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                        <button
+                          onClick={() => {
+                            setModifyTarget(gate);
+                            setModifyModalOpen(true);
+                          }}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all flex items-center space-x-1.5"
+                        >
+                          <span>Editar / Retroalimentar (Modify)</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDecision(gate.opportunity_id, "OVERRIDE")}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all flex items-center space-x-1.5"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>Tomar Control (Override)</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleDecision(gate.opportunity_id, "APPROVE")}
+                          className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all flex items-center space-x-1.5"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Aprobar (Approve)</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: PIPELINE KANBAN */}
+        {activeTab === "kanban" && (
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 overflow-x-auto pb-4">
+            {["1. Prospección (Gate 1)", "2. Outreach (Gate 2)", "3. Descubrimiento (Gate 3)", "4. Solución & Pricing (Gate 4)", "5. Cierre & Firma (Gate 5)"].map((column, idx) => (
+              <div key={idx} className="bg-slate-100/70 rounded-2xl p-4 border border-slate-200 flex flex-col min-h-[450px]">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">{column}</h4>
+                </div>
+                <div className="space-y-3 flex-1">
+                  {pendingGates.filter(g => {
+                    if (idx === 0) return g.gate_type === "GATE_1_TARGET";
+                    if (idx === 1) return g.gate_type === "GATE_2_OUTREACH";
+                    if (idx === 2) return g.gate_type === "GATE_3_DISCOVERY";
+                    if (idx === 3) return g.gate_type === "GATE_4_ARCHITECT";
+                    if (idx === 4) return g.gate_type === "GATE_5_LEGAL";
+                    return false;
+                  }).map(item => (
+                    <div key={item.opportunity_id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 hover:border-blue-400 transition-all">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-bold text-slate-800">{item.company_name}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 line-clamp-2">{item.recommendation_summary}</p>
+                      <button
+                        onClick={() => {
+                          setActiveTab("inbox");
+                        }}
+                        className="mt-3 w-full py-1.5 text-center text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all"
+                      >
+                        Revisar en Inbox →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* TAB 3: SERVICES CATALOG */}
+        {activeTab === "catalog" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 relative overflow-hidden flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
+                      ⭐ Insignia
+                    </span>
+                    <button
+                      onClick={() => handleOpenEditCatalog("DOC_MANAGER")}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-sm transition-all"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span>Editar Servicio y Tarifas</span>
+                    </button>
+                  </div>
+                </div>
+
+                <h3 className="text-lg font-bold text-slate-900">DocumentTrack / INNOVAIT DocManager</h3>
+                <p className="text-sm text-slate-600 mt-2">
+                  {serviceDescriptions.DOC_MANAGER}
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-700">
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.doc_starter}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.doc_starter_monthly} USD/mes + ${customPrices.doc_starter_impl.toLocaleString()} impl</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.doc_enterprise}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.doc_enterprise_monthly.toLocaleString()} USD/mes + ${customPrices.doc_enterprise_impl.toLocaleString()} impl</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.doc_custom}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.doc_custom_monthly.toLocaleString()} USD/mes + ${customPrices.doc_custom_impl.toLocaleString()} impl</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                    <Database className="w-6 h-6" />
+                  </div>
+                  <button
+                    onClick={() => handleOpenEditCatalog("DATA_HYGIENE")}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 shadow-sm transition-all"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>Editar Servicio y Tarifas</span>
+                  </button>
+                </div>
+
+                <h3 className="text-lg font-bold text-slate-900">Orden y Depuración de Bases de Datos</h3>
+                <p className="text-sm text-slate-600 mt-2">
+                  {serviceDescriptions.DATA_HYGIENE}
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-700">
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.data_audit}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.data_audit.toLocaleString()} USD fijo</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.data_standard}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.data_standard.toLocaleString()} USD fijo</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.data_enterprise}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.data_enterprise.toLocaleString()} USD fijo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                    <Cloud className="w-6 h-6" />
+                  </div>
+                  <button
+                    onClick={() => handleOpenEditCatalog("CLOUD_INFRA")}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 shadow-sm transition-all"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>Editar Servicio y Tarifas</span>
+                  </button>
+                </div>
+
+                <h3 className="text-lg font-bold text-slate-900">Infraestructuras Cloud (AWS / Azure / GCP)</h3>
+                <p className="text-sm text-slate-600 mt-2">
+                  {serviceDescriptions.CLOUD_INFRA}
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-700">
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.cloud_setup}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.cloud_setup.toLocaleString()} USD fijo</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.cloud_managed}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.cloud_managed.toLocaleString()} USD/mes</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.cloud_devops}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.cloud_devops.toLocaleString()} USD/mes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
+                    <Sparkles className="w-6 h-6" />
+                  </div>
+                  <button
+                    onClick={() => handleOpenEditCatalog("AI_AUTOMATION")}
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 shadow-sm transition-all"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>Editar Servicio y Tarifas</span>
+                  </button>
+                </div>
+
+                <h3 className="text-lg font-bold text-slate-900">Automatización con IA & Agentes</h3>
+                <p className="text-sm text-slate-600 mt-2">
+                  {serviceDescriptions.AI_AUTOMATION}
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-700">
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.ai_poc}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.ai_poc.toLocaleString()} USD fijo</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.ai_agentic}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.ai_agentic.toLocaleString()} USD fijo</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>{tierLabels.ai_enterprise}:</span>
+                    <span className="font-bold text-slate-900">${customPrices.ai_enterprise.toLocaleString()} USD fijo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* MODAL: EDITAR / RETROALIMENTAR (MODIFY) */}
+      {modifyModalOpen && modifyTarget && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <h3 className="text-lg font-bold text-slate-900">
+              Instrucciones Humanas de Modificación (Gate Feedback)
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Oportunidad: <span className="font-bold text-slate-700">{modifyTarget.company_name}</span> ({modifyTarget.gate_type})
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Retroalimentación para el Agente (Feedback):
+                </label>
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Ej: Modifica el tono del correo para enfatizar la depuración de base de datos antes de la gestión documental, o reduce el fee de implementación un 10% condicionado a contrato anual."
+                  rows={4}
+                  className="w-full text-sm p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              {modifyTarget.gate_type === "GATE_4_ARCHITECT" && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Ajuste Manual de Descuento (%):
+                  </label>
+                  <input
+                    type="number"
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder="Ej: 15"
+                    className="w-full text-sm p-2.5 border border-slate-300 rounded-xl"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex items-center justify-end space-x-3">
+              <button
+                onClick={() => setModifyModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  const mods = discountValue ? { discount_percentage: parseFloat(discountValue) } : null;
+                  handleDecision(modifyTarget.opportunity_id, "MODIFY", feedbackText, mods);
+                }}
+                disabled={!feedbackText.trim() || submitting}
+                className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50"
+              >
+                {submitting ? "Re-ejecutando Agente..." : "Re-ejecutar con Feedback"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: NUEVA OPORTUNIDAD */}
+      {newOppModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-900">Agregar Nuevo Prospecto B2B</h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Dispara el Scraper & Enricher Agent con enriquecimiento vía Apollo.io y Hunter.io.
+            </p>
+
+            <form onSubmit={handleCreateOpportunity} className="mt-4 space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nombre de la Empresa:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Logística Transcontinental S.A."
+                  value={newCompany}
+                  onChange={(e) => setNewCompany(e.target.value)}
+                  className="w-full text-sm p-2.5 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Sitio Web / Dominio:</label>
+                <input
+                  type="text"
+                  placeholder="Ej: https://www.logisticatrans.com"
+                  value={newWebsite}
+                  onChange={(e) => setNewWebsite(e.target.value)}
+                  className="w-full text-sm p-2.5 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">País:</label>
+                <input
+                  type="text"
+                  value={newCountry}
+                  onChange={(e) => setNewCountry(e.target.value)}
+                  className="w-full text-sm p-2.5 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              <div className="mt-6 flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setNewOppModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {submitting ? "Iniciando Agente..." : "Iniciar Prospección"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: MODIFICAR SERVICIO Y PRECIOS DEL CATÁLOGO */}
+      {editCatalogModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-center space-x-2 mb-1">
+              <Pencil className="w-5 h-5 text-blue-600" />
+              <h3 className="text-lg font-bold text-slate-900">
+                {editingServiceId === "DOC_MANAGER" && "Editar Servicio: DocumentTrack / DocManager"}
+                {editingServiceId === "DATA_HYGIENE" && "Editar Servicio: Orden y Depuración de BD"}
+                {editingServiceId === "CLOUD_INFRA" && "Editar Servicio: Infraestructuras Cloud"}
+                {editingServiceId === "AI_AUTOMATION" && "Editar Servicio: Automatización con IA & Agentes"}
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Los cambios se guardan de inmediato en el catálogo oficial y actualizan la lógica de cotización de los agentes.
+            </p>
+
+            {/* Campo editable de Descripción del Servicio */}
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 mb-4">
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Descripción Oficial del Servicio:
+              </label>
+              <textarea
+                rows={3}
+                value={currentEditingSummary}
+                onChange={(e) => setCurrentEditingSummary(e.target.value)}
+                placeholder="Descripción del servicio para la propuesta y el catálogo..."
+                className="w-full text-sm p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white text-slate-800"
+              />
+            </div>
+
+            {/* Formulario según el servicio seleccionado */}
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+              {editingServiceId === "DOC_MANAGER" && (
+                <>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div className="mb-2">
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Capacidad del Tier:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.doc_starter}
+                        onChange={(e) => setTierLabels({ ...tierLabels, doc_starter: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Tier Starter (15 usuarios)"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Mensualidad (USD):</label>
+                        <input
+                          type="number"
+                          value={customPrices.doc_starter_monthly}
+                          onChange={(e) => setCustomPrices({ ...customPrices, doc_starter_monthly: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Implementación (USD):</label>
+                        <input
+                          type="number"
+                          value={customPrices.doc_starter_impl}
+                          onChange={(e) => setCustomPrices({ ...customPrices, doc_starter_impl: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div className="mb-2">
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Capacidad del Tier:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.doc_enterprise}
+                        onChange={(e) => setTierLabels({ ...tierLabels, doc_enterprise: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Tier Enterprise (100 usuarios)"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Mensualidad (USD):</label>
+                        <input
+                          type="number"
+                          value={customPrices.doc_enterprise_monthly}
+                          onChange={(e) => setCustomPrices({ ...customPrices, doc_enterprise_monthly: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Implementación (USD):</label>
+                        <input
+                          type="number"
+                          value={customPrices.doc_enterprise_impl}
+                          onChange={(e) => setCustomPrices({ ...customPrices, doc_enterprise_impl: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div className="mb-2">
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Capacidad del Tier:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.doc_custom}
+                        onChange={(e) => setTierLabels({ ...tierLabels, doc_custom: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Tier Corporate Custom (500+ usuarios)"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Mensualidad (USD):</label>
+                        <input
+                          type="number"
+                          value={customPrices.doc_custom_monthly}
+                          onChange={(e) => setCustomPrices({ ...customPrices, doc_custom_monthly: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Implementación (USD):</label>
+                        <input
+                          type="number"
+                          value={customPrices.doc_custom_impl}
+                          onChange={(e) => setCustomPrices({ ...customPrices, doc_custom_impl: parseFloat(e.target.value) || 0 })}
+                          className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {editingServiceId === "DATA_HYGIENE" && (
+                <>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.data_audit}
+                        onChange={(e) => setTierLabels({ ...tierLabels, data_audit: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Auditoría & Plan (2 semanas)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Fija (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.data_audit}
+                        onChange={(e) => setCustomPrices({ ...customPrices, data_audit: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.data_standard}
+                        onChange={(e) => setTierLabels({ ...tierLabels, data_standard: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Depuración Standard (hasta 500k registros)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Fija (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.data_standard}
+                        onChange={(e) => setCustomPrices({ ...customPrices, data_standard: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.data_enterprise}
+                        onChange={(e) => setTierLabels({ ...tierLabels, data_enterprise: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Migración Enterprise & Refactorización"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Fija (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.data_enterprise}
+                        onChange={(e) => setCustomPrices({ ...customPrices, data_enterprise: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {editingServiceId === "CLOUD_INFRA" && (
+                <>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.cloud_setup}
+                        onChange={(e) => setTierLabels({ ...tierLabels, cloud_setup: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Assessment & Setup Inicial"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Fija (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.cloud_setup}
+                        onChange={(e) => setCustomPrices({ ...customPrices, cloud_setup: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.cloud_managed}
+                        onChange={(e) => setTierLabels({ ...tierLabels, cloud_managed: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Managed Cloud Support"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Mensual (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.cloud_managed}
+                        onChange={(e) => setCustomPrices({ ...customPrices, cloud_managed: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.cloud_devops}
+                        onChange={(e) => setTierLabels({ ...tierLabels, cloud_devops: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="DevOps & SRE Enterprise 24/7"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Mensual (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.cloud_devops}
+                        onChange={(e) => setCustomPrices({ ...customPrices, cloud_devops: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {editingServiceId === "AI_AUTOMATION" && (
+                <>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.ai_poc}
+                        onChange={(e) => setTierLabels({ ...tierLabels, ai_poc: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="PoC Fast Track (2 semanas)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Fija (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.ai_poc}
+                        onChange={(e) => setCustomPrices({ ...customPrices, ai_poc: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.ai_agentic}
+                        onChange={(e) => setTierLabels({ ...tierLabels, ai_agentic: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Sistema Agéntico Productivo (6 semanas)"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Fija (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.ai_agentic}
+                        onChange={(e) => setCustomPrices({ ...customPrices, ai_agentic: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                        Nombre / Alcance del Nivel:
+                      </label>
+                      <input
+                        type="text"
+                        value={tierLabels.ai_enterprise}
+                        onChange={(e) => setTierLabels({ ...tierLabels, ai_enterprise: e.target.value })}
+                        className="w-full text-xs p-2 border border-slate-300 rounded-lg font-medium text-slate-800 bg-white"
+                        placeholder="Ecosistema Multi-Agente Enterprise"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tarifa Fija (USD):</label>
+                      <input
+                        type="number"
+                        value={customPrices.ai_enterprise}
+                        onChange={(e) => setCustomPrices({ ...customPrices, ai_enterprise: parseFloat(e.target.value) || 0 })}
+                        className="w-full text-sm p-2 border border-slate-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="mt-6 flex items-center justify-end space-x-3 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setEditCatalogModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePrices}
+                disabled={pricesSaving}
+                className="inline-flex items-center space-x-2 px-5 py-2 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span>{pricesSaving ? "Guardando..." : "Guardar Cambios"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

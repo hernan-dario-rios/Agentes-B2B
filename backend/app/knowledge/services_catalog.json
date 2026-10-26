@@ -1,0 +1,164 @@
+{
+  "company": "INNOVAIT Tech Solutions",
+  "version": "2026.1",
+  "services": [
+    {
+      "id": "DOC_MANAGER",
+      "name": "Sistema de Gestión Documental Empresarial (INNOVAIT DocManager)",
+      "category": "FLAGSHIP_PRODUCT",
+      "summary": "Plataforma contenerizada en Docker (Web Tier, Worker Tier, Data Tier y Storage Tier) para recepción de facturas, validación XML/CUFE y extracción OCR con modelos de IA.",
+      "key_features": [
+        "Digitalización inteligente y OCR multilingüe con extracción semántica",
+        "Expedientes digitales centralizados con control estricto de accesos y roles (RBAC)",
+        "Motor de flujos de trabajo (Workflows) y aprobaciones multinivel",
+        "Trazabilidad inmutable de versiones y auditoría de accesos",
+        "Firma electrónica integrada y cumplimiento normativo",
+        "Conectores listos para ERPs (SAP, Oracle, Odoo) y repositorios cloud"
+      ],
+      "target_pain_points": [
+        "Pérdida de documentos físicos y lentitud en localización de expedientes",
+        "Riesgos de multas por incumplimiento normativo o auditorías legales",
+        "Procesos manuales de aprobación por correo electrónico o papel",
+        "Falta de trazabilidad y descontrol de versiones en contratos o facturas"
+      ],
+      "pricing_tiers": {
+        "STARTER": {
+          "name": "Tier Starter (2 usuarios)",
+          "max_users": 15,
+          "monthly_fee_usd": 32,
+          "storage_gb": 100,
+          "implementation_fee_usd": 49
+        },
+        "ENTERPRISE": {
+          "name": "Tier Enterprise (8 usuarios)",
+          "max_users": 100,
+          "monthly_fee_usd": 72,
+          "storage_gb": 1000,
+          "implementation_fee_usd": 79
+        },
+        "CORPORATE_CUSTOM": {
+          "name": "Tier Corporate Custom (25 usuarios)",
+          "max_users": 500,
+          "monthly_fee_usd": 200,
+          "storage_gb": 5000,
+          "implementation_fee_usd": 149
+        }
+      }
+    },
+    {
+      "id": "DATA_HYGIENE",
+      "name": "Orden y Depuración de Bases de Datos",
+      "category": "DATA_SERVICES",
+      "summary": "Perfilado, deduplicación y saneamiento de registros inconsistentes, normalización de datos maestros y pipelines limpios para migración segura.",
+      "key_features": [
+        "Perfilado y auditoría inicial de calidad de datos",
+        "Deduplicación algorítmica y fuzzy matching con validación supervisada",
+        "Normalización de estándares (RUT/RFC/NIF, direcciones, teléfonos, emails)",
+        "Migración segura de esquemas legacy sin tiempo de inactividad crítico",
+        "Implementación de reglas de gobernanza y validaciones en tiempo real"
+      ],
+      "target_pain_points": [
+        "Base de datos con registros de clientes y productos duplicados o corruptos",
+        "Decisiones de negocio erróneas debido a reportes analíticos inconsistentes",
+        "Lentitud en consultas transaccionales y almacenamiento inflado",
+        "Fallas de integración al conectar el CRM o ERP con nuevos sistemas"
+      ],
+      "pricing_tiers": {
+        "AUDIT_AND_PLAN": {
+          "name": "Auditoría & Plan (2 semanas)",
+          "fixed_fee_usd": 1500,
+          "duration_weeks": 2,
+          "deliverables": "Informe exhaustivo de anomalías y plan de remediación"
+        },
+        "STANDARD_CLEANSING": {
+          "name": "Depuración Standard (hasta 500k registros)",
+          "fixed_fee_usd": 3800,
+          "duration_weeks": 4,
+          "deliverables": "Depuración hasta 500,000 registros, normalización y pipelines de carga limpia"
+        },
+        "ENTERPRISE_MIGRATION": {
+          "name": "Migración Enterprise & Refactorización",
+          "fixed_fee_usd": 9400,
+          "duration_weeks": 8,
+          "deliverables": "Limpieza profunda masiva, refactorización de esquemas y migración de BD crítica"
+        }
+      }
+    },
+    {
+      "id": "CLOUD_INFRA",
+      "name": "Infraestructuras Cloud (AWS / Azure / GCP)",
+      "category": "INFRASTRUCTURE",
+      "summary": "Modernización a contenedores, landing zones seguras, alta disponibilidad, copias inmutables, FinOps y monitoreo proactivo 24/7.",
+      "key_features": [
+        "Migración 'Lift & Shift' o modernización a contenedores (Docker / Kubernetes)",
+        "Arquitectura de alta disponibilidad con recuperación ante desastres (Disaster Recovery)",
+        "Optimización de costos cloud (FinOps) con reducciones típicas del 25% al 40%",
+        "Seguridad perimetral, WAF, cifrado en reposo/tránsito y compliance (SOC2/ISO27001)",
+        "Monitoreo proactivo 24/7 y gestión de parches/backups inmutables"
+      ],
+      "target_pain_points": [
+        "Servidores locales antiguos con fallas de hardware y sin respaldo adecuado",
+        "Facturas de nube desbordadas sin control de consumo de recursos",
+        "Caídas del sistema ante picos de demanda o incidentes operativos",
+        "Vulnerabilidades de ciberseguridad y falta de cifrado en datos sensibles"
+      ],
+      "pricing_tiers": {
+        "CLOUD_ASSESSMENT_AND_SETUP": {
+          "name": "Assessment & Setup Inicial",
+          "fixed_fee_usd": 149,
+          "duration_weeks": 3,
+          "deliverables": "Diseño de arquitectura, landing zone segura y despliegue inicial"
+        },
+        "MANAGED_CLOUD_SUPPORT": {
+          "name": "Managed Cloud Support",
+          "monthly_fee_usd": 329,
+          "coverage": "Monitoreo 24/7, parches, backups y hasta 20 horas mensuales de ingeniería cloud"
+        },
+        "ENTERPRISE_DEVOPS_MANAGED": {
+          "name": "DevOps & SRE Enterprise 24/7",
+          "monthly_fee_usd": 690,
+          "coverage": "SRE dedicado, CI/CD, FinOps continuo y soporte con SLA de 15 minutos ante incidentes críticos"
+        }
+      }
+    },
+    {
+      "id": "AI_AUTOMATION",
+      "name": "Automatización con IA & Agentes",
+      "category": "ARTIFICIAL_INTELLIGENCE",
+      "summary": "RAG corporativo sobre documentos y normativas, flujos de trabajo autónomos con n8n/APIs y extracción no estructurada de datos.",
+      "key_features": [
+        "Búsqueda semántica y RAG sobre bases de conocimiento y documentación interna",
+        "Agentes autónomos de triage, servicio al cliente y procesamiento de órdenes",
+        "Automatización de procesos de extremo a extremo mediante n8n, Python y webhooks",
+        "Extracción inteligente de datos no estructurados en correos, PDFs y contratos",
+        "Gobernanza de IA: filtros de seguridad, auditoría de prompts y reducción de alucinaciones"
+      ],
+      "target_pain_points": [
+        "Horas del personal desperdiciadas en copiar/pegar datos entre aplicaciones",
+        "Atención lenta a consultas repetitivas de clientes o empleados internos",
+        "Dificultad para consultar y extraer respuestas precisas de manuales y normativas extensas",
+        "Incapacidad de escalar operaciones sin contratar exponencialmente personal operativo"
+      ],
+      "pricing_tiers": {
+        "POC_FAST_TRACK": {
+          "name": "PoC Fast Track (2 semanas)",
+          "fixed_fee_usd": 999,
+          "duration_weeks": 2,
+          "deliverables": "Prueba de concepto funcional sobre caso de uso delimitado"
+        },
+        "PRODUCTION_AGENTIC_SYSTEM": {
+          "name": "Sistema Agéntico Productivo (6 semanas)",
+          "fixed_fee_usd": 1499,
+          "duration_weeks": 6,
+          "deliverables": "Sistema de agentes RAG o automatización productiva integrado a BD/ERP"
+        },
+        "ENTERPRISE_AI_ECOSYSTEM": {
+          "name": "Ecosistema de IA Enterprise (Multi-agente)",
+          "fixed_fee_usd": 4999,
+          "duration_weeks": 10,
+          "deliverables": "Múltiples agentes orquestados, fine-tuning/RAG avanzado, observabilidad y soporte continuo"
+        }
+      }
+    }
+  ]
+}
