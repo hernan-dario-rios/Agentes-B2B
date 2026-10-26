@@ -130,13 +130,11 @@ resource "aws_instance" "app_server" {
       echo '/swapfile none swap sw 0 0' >> /etc/fstab
     fi
 
-    # 2. Instalar Docker, Docker Compose y Git
+    # 2. Instalar Docker y utilitarios con el instalador oficial
     apt-get update -y
-    apt-get install -y ca-certificates curl gnupg git docker.io docker-compose-plugin
-
-    # 3. Arrancar Docker y agregar usuario ubuntu
-    systemctl enable docker
-    systemctl start docker
+    apt-get install -y ca-certificates curl gnupg git
+    curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+    sh /tmp/get-docker.sh
     usermod -aG docker ubuntu
 
     # 4. Crear carpeta base para el proyecto

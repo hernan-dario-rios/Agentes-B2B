@@ -29,17 +29,31 @@ jobs:
             echo "🚀 Iniciando despliegue de Agentes B2B..."
             echo "=========================================="
 
-            # Esperar si el servidor aún está ejecutando el script inicial de instalación
-            if command -v cloud-init >/dev/null 2>&1; then
-              echo "⏳ Verificando inicialización del sistema (cloud-init)..."
-              cloud-init status --wait || true
+            # 1. Configurar 2GB de memoria Swap si aún no existe (vital en t3.micro para compilar Next.js)
+            if [ ! -f /swapfile ]; then
+              echo "🧠 Configurando memoria Swap..."
+              sudo fallocate -l 2G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=2048
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
             fi
 
-            # Crear directorio de despliegue si no existe
+            # 2. Asegurar que Docker y Docker Compose estén instalados y funcionando
+            if ! command -v docker >/dev/null 2>&1 || ! sudo docker compose version >/dev/null 2>&1; then
+              echo "🐳 Instalando Docker y Docker Compose oficial..."
+              curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+              sudo sh /tmp/get-docker.sh
+              sudo usermod -aG docker ubuntu || true
+              sudo systemctl enable docker
+              sudo systemctl start docker
+            fi
+
+            # 3. Crear directorio de despliegue si no existe
             mkdir -p ~/innovait-app
             cd ~/innovait-app
 
-            # Si es el primer despliegue, clonar repositorio privado con token efímero de GitHub
+            # 4. Clonar repositorio privado con token efímero o sincronizar cambios
             if [ ! -d ".git" ]; then
               echo "📥 Clonando repositorio privado..."
               find . -mindepth 1 -delete
@@ -54,7 +68,7 @@ jobs:
             # Restaurar la URL remota sin credenciales por seguridad
             git remote set-url origin https://github.com/${{ github.repository }}.git
 
-            # Generar archivo .env en el servidor con los secretos configurados en GitHub
+            # 5. Generar archivo .env en el servidor con los secretos configurados en GitHub
             echo "⚙️ Configurando variables de entorno..."
             cat << 'EOF' > .env
             PROJECT_NAME="INNOVAIT B2B Multi-Agent Sales System"
@@ -72,20 +86,14 @@ jobs:
             CORS_ORIGINS=["http://${{ secrets.AWS_EC2_HOST }}:3000","http://localhost:3000","http://${{ secrets.AWS_EC2_HOST }}:8000"]
             EOF
 
-            # Detectar comando docker disponible (con o sin sudo)
-            DOCKER_CMD="docker compose"
-            if ! docker info >/dev/null 2>&1; then
-              DOCKER_CMD="sudo docker compose"
-            fi
-
-            # Reconstruir y levantar contenedores Docker
+            # 6. Reconstruir y levantar contenedores Docker
             echo "🐳 Desplegando contenedores Docker..."
-            $DOCKER_CMD down || true
-            $DOCKER_CMD up -d --build
+            sudo docker compose down || true
+            sudo docker compose up -d --build
 
-            # Limpiar capas e imágenes antiguas para ahorrar espacio en disco (Free Tier)
+            # 7. Limpiar capas e imágenes antiguas para ahorrar espacio en disco (Free Tier)
             echo "🧹 Limpiando imágenes en desuso..."
-            docker image prune -f || sudo docker image prune -f
+            sudo docker image prune -f
 
             echo "=========================================="
             echo "✅ Despliegue completado con éxito."
