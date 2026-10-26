@@ -2,19 +2,55 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     container_name: innovait_sales_db
+    restart: always
     environment:
-      POSTGRES_USER: innovait_user
-      POSTGRES_PASSWORD: innovait_password
-      POSTGRES_DB: innovait_sales
+      POSTGRES_USER: ${POSTGRES_USER:-innovait_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-innovait_password}
+      POSTGRES_DB: ${POSTGRES_DB:-innovait_sales}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U innovait_user -d innovait_sales"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-innovait_user} -d ${POSTGRES_DB:-innovait_sales}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: innovait_sales_backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-innovait_user}:${POSTGRES_PASSWORD:-innovait_password}@postgres:5432/${POSTGRES_DB:-innovait_sales}
+      - SYNC_DATABASE_URL=postgresql://${POSTGRES_USER:-innovait_user}:${POSTGRES_PASSWORD:-innovait_password}@postgres:5432/${POSTGRES_DB:-innovait_sales}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - APOLLO_API_KEY=${APOLLO_API_KEY:-}
+      - HUNTER_API_KEY=${HUNTER_API_KEY:-}
+      - LINKEDIN_PROXY_API_KEY=${LINKEDIN_PROXY_API_KEY:-}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DEBUG=${DEBUG:-False}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["*"]}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    container_name: innovait_sales_frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

@@ -1,0 +1,74 @@
+name: Deploy to AWS Free Tier (EC2)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Build & Deploy to AWS EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Ejecutar despliegue vía SSH en EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ${{ secrets.AWS_EC2_USER }}
+          key: ${{ secrets.AWS_EC2_SSH_KEY }}
+          script: |
+            set -e
+            echo "=========================================="
+            echo "🚀 Iniciando despliegue de Agentes B2B..."
+            echo "=========================================="
+
+            # Crear directorio de despliegue si no existe
+            mkdir -p ~/innovait-app
+            cd ~/innovait-app
+
+            # Si es el primer despliegue, clonar repositorio; si ya existe, actualizar
+            if [ ! -d ".git" ]; then
+              echo "📥 Clonando repositorio..."
+              git clone https://github.com/${{ github.repository }}.git .
+            else
+              echo "🔄 Actualizando cambios desde main..."
+              git fetch origin main
+              git reset --hard origin/main
+            fi
+
+            # Generar archivo .env en el servidor con los secretos configurados en GitHub
+            echo "⚙️ Configurando variables de entorno..."
+            cat << 'EOF' > .env
+            PROJECT_NAME="INNOVAIT B2B Multi-Agent Sales System"
+            ENVIRONMENT="production"
+            DEBUG=False
+            API_V1_PREFIX="/api/v1"
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            APOLLO_API_KEY=${{ secrets.APOLLO_API_KEY }}
+            HUNTER_API_KEY=${{ secrets.HUNTER_API_KEY }}
+            LINKEDIN_PROXY_API_KEY=${{ secrets.LINKEDIN_PROXY_API_KEY }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER || 'innovait_user' }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'innovait_password' }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB || 'innovait_sales' }}
+            NEXT_PUBLIC_API_URL=http://${{ secrets.AWS_EC2_HOST }}:8000/api/v1
+            CORS_ORIGINS=["http://${{ secrets.AWS_EC2_HOST }}:3000","http://localhost:3000","http://${{ secrets.AWS_EC2_HOST }}:8000"]
+            EOF
+
+            # Reconstruir y levantar contenedores Docker
+            echo "🐳 Desplegando contenedores Docker..."
+            docker compose down || true
+            docker compose up -d --build
+
+            # Limpiar capas e imágenes antiguas para ahorrar espacio en disco (Free Tier)
+            echo "🧹 Limpiando imágenes en desuso..."
+            docker image prune -f
+
+            echo "=========================================="
+            echo "✅ Despliegue completado con éxito."
+            echo "Frontend: http://${{ secrets.AWS_EC2_HOST }}:3000"
+            echo "Backend:  http://${{ secrets.AWS_EC2_HOST }}:8000/docs"
+            echo "=========================================="
