@@ -71,21 +71,22 @@ jobs:
 
             # 5. Generar archivo .env en el servidor con los secretos configurados en GitHub
             echo "⚙️ Configurando variables de entorno..."
-            cat << 'EOF' > .env
-            PROJECT_NAME="INNOVAIT B2B Multi-Agent Sales System"
-            ENVIRONMENT="production"
-            DEBUG=False
-            API_V1_PREFIX="/api/v1"
-            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-            APOLLO_API_KEY=${{ secrets.APOLLO_API_KEY }}
-            HUNTER_API_KEY=${{ secrets.HUNTER_API_KEY }}
-            LINKEDIN_PROXY_API_KEY=${{ secrets.LINKEDIN_PROXY_API_KEY }}
-            POSTGRES_USER=${{ secrets.POSTGRES_USER || 'innovait_user' }}
-            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD || 'innovait_password' }}
-            POSTGRES_DB=${{ secrets.POSTGRES_DB || 'innovait_sales' }}
-            NEXT_PUBLIC_API_URL=http://${{ secrets.AWS_EC2_HOST }}:8000/api/v1
-            CORS_ORIGINS=["http://${{ secrets.AWS_EC2_HOST }}:3000","http://localhost:3000","http://${{ secrets.AWS_EC2_HOST }}:8000"]
-            EOF
+            > .env
+            echo 'PROJECT_NAME="INNOVAIT B2B Multi-Agent Sales System"' >> .env
+            echo 'ENVIRONMENT="production"' >> .env
+            echo 'DEBUG="False"' >> .env
+            echo 'API_V1_PREFIX="/api/v1"' >> .env
+            echo 'GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"' >> .env
+            echo 'APOLLO_API_KEY="${{ secrets.APOLLO_API_KEY }}"' >> .env
+            echo 'HUNTER_API_KEY="${{ secrets.HUNTER_API_KEY }}"' >> .env
+            echo 'LINKEDIN_PROXY_API_KEY="${{ secrets.LINKEDIN_PROXY_API_KEY }}"' >> .env
+            echo 'POSTGRES_USER="${{ secrets.POSTGRES_USER || 'innovait_user' }}"' >> .env
+            echo 'POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD || 'innovait_password' }}"' >> .env
+            echo 'POSTGRES_DB="${{ secrets.POSTGRES_DB || 'innovait_sales' }}"' >> .env
+            echo 'NEXT_PUBLIC_API_URL="http://${{ secrets.AWS_EC2_HOST }}:8000/api/v1"' >> .env
+            echo 'CORS_ORIGINS=["http://${{ secrets.AWS_EC2_HOST }}:3000","http://localhost:3000","http://${{ secrets.AWS_EC2_HOST }}:8000"]' >> .env
+            # Limpiar posibles espacios accidentales al inicio de los valores
+            sed -i 's/=" */="/g' .env
 
             # 6. Reconstruir y levantar contenedores Docker
             echo "🐳 Desplegando contenedores Docker..."
