@@ -1,4 +1,6 @@
+import json
 import logging
+from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime, timezone
 from langgraph.types import Command
@@ -11,12 +13,44 @@ from app.graph.nodes.sdr import _apply_fallback_outreach
 
 logger = logging.getLogger(__name__)
 
+DB_PATH = Path(__file__).resolve().parent.parent / "knowledge" / "opportunities_db.json"
+
 
 class OpportunityService:
     def __init__(self):
-        # Repositorio en memoria sincronizado para pruebas y persistencia en dev
+        # Repositorio sincronizado en memoria y persistido en archivo JSON permanente
         self.opportunities: Dict[str, OpportunityContext] = {}
         self.graph_states: Dict[str, AgentState] = {}
+        self._load_db()
+
+    def _load_db(self):
+        """Carga permanente de las oportunidades desde el archivo JSON del backend"""
+        if not DB_PATH.exists():
+            return
+        try:
+            with open(DB_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                for item in data:
+                    try:
+                        opp = OpportunityContext.model_validate(item)
+                        self.opportunities[opp.opportunity_id] = opp
+                    except Exception as err:
+                        logger.warning(f"Error parseando oportunidad desde DB JSON: {err}")
+            logger.info(f"[OpportunityService] Se cargaron {len(self.opportunities)} oportunidades persistidas desde {DB_PATH.name}")
+        except Exception as e:
+            logger.error(f"[OpportunityService] Error leyendo {DB_PATH}: {e}")
+
+    def _save_db(self):
+        """Persistencia atómica de oportunidades en disco para prevenir pérdidas por reinicios"""
+        try:
+            DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+            serializable = [opp.model_dump(mode="json") for opp in self.opportunities.values()]
+            with open(DB_PATH, "w", encoding="utf-8") as f:
+                json.dump(serializable, f, indent=2, ensure_ascii=False)
+            logger.info(f"[OpportunityService] Guardadas {len(serializable)} oportunidades en {DB_PATH.name}")
+        except Exception as e:
+            logger.error(f"[OpportunityService] Error guardando {DB_PATH}: {e}")
 
     def create_opportunity(
         self,
@@ -48,7 +82,9 @@ class OpportunityService:
         if updated_state and updated_state.values:
             latest_opp = updated_state.values.get("opportunity", opp)
             self.opportunities[opp_id] = latest_opp
+            self._save_db()
             return latest_opp
+        self._save_db()
         return opp
 
     def get_opportunity(self, opp_id: str) -> Optional[OpportunityContext]:
@@ -271,6 +307,7 @@ class OpportunityService:
                             opp.outreach.body_markdown = str(payload.modifications["final_body"]).strip()
                     opp.outreach.sent_at = datetime.now(timezone.utc)
                     opp.stage = PipelineStage.OUTREACH_ACTIVE
+                    self._save_db()
                 return opp
             return None
 
@@ -291,7 +328,9 @@ class OpportunityService:
             updated_opp = new_state.values.get("opportunity")
             if updated_opp:
                 self.opportunities[opp_id] = updated_opp
+                self._save_db()
                 return updated_opp
+        self._save_db()
         return self.opportunities.get(opp_id)
 
 

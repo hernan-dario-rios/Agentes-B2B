@@ -1,0 +1,159 @@
+[
+  {
+    "opportunity_id": "opp_20261028145526_001",
+    "company_name": "Cooperativa Financiera JFK",
+    "website": "https://www.jfk.com.co",
+    "country": "Colombia",
+    "target_services": [
+      "DOC_MANAGER",
+      "DATA_HYGIENE",
+      "CLOUD_INFRA"
+    ],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_3_DISCOVERY",
+    "icp_data": {
+      "industry": "Servicios Financieros / Cooperativo",
+      "size_employees": 850,
+      "annual_revenue_range": "35M - 60M USD",
+      "current_stack": [
+        "Windows Server 2016",
+        "PostgreSQL / SQL Server desnormalizado",
+        "Archivo físico en bodegas"
+      ],
+      "pain_points": [
+        "Archivo físico en bodega con acumulación masiva de pagarés y expedientes en papel",
+        "Duplicidad e inconsistencia de registros de asociados/clientes en base de datos",
+        "Servidores locales antiguos on-premise sin respaldo cloud ante contingencias o pérdida de datos"
+      ],
+      "fit_score": 94,
+      "icp_reasoning": "Alineación estratégica de alto valor para DocumentTrack, saneamiento algorítmico de base de datos y migración a landing zone AWS."
+    },
+    "contacts": [
+      {
+        "name": "Javier Andrés Loaiza Mira",
+        "role": "Subgerente de Tecnología e Informática",
+        "email": "javier.loaiza@jfk.com.co",
+        "linkedin_url": "https://www.linkedin.com/in/javier-andr%C3%A9s-loaiza-mira-15886361/",
+        "status": "CONTACTED"
+      },
+      {
+        "name": "Colette Rodriguez",
+        "role": "Directora de Agencia",
+        "email": "colette.rodriguez@jfk.com.co",
+        "linkedin_url": "https://www.linkedin.com/in/colette-rodriguez-466a9388",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Leidy Garcia",
+        "role": "Directora Contabilidad",
+        "email": "leidy.garcia@jfk.com.co",
+        "linkedin_url": "https://www.linkedin.com/in/leidy-garcia-8348b615a",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": {
+      "channel": "EMAIL",
+      "subject": "INNOVAIT | Transformación digital y eficiencia operativa para Cooperativa Financiera JFK",
+      "body_markdown": "Estimado Javier Andrés Loaiza Mira,\n\nSubgerente de Tecnología e Informática - Cooperativa Financiera JFK\n\nDesde el área de Consultoría de Soluciones de INNOVAIT, hemos analizado con gran admiración la trayectoria y el impacto de Cooperativa Financiera JFK como referente de inclusión y solidez en el sector cooperativo colombiano.\n\nEn organizaciones con la cobertura y volumen de operaciones de JFK, hemos identificado que el crecimiento suele verse desafiado por tres puntos críticos que impactan directamente el rendimiento y los costos de operación:\n\n1. Custodia y trazabilidad de archivos físicos: Altos costos de bodegaje para pagarés, garantías y expedientes de crédito, sumado a demoras en la recuperación manual ante requerimientos de auditoría y entes de control.\n2. Inconsistencia y desnormalización de datos: Duplicidad o fragmentación de registros en las bases de datos de asociados, lo que complejiza la reportería regulatoria y las campañas de crédito.\n3. Resiliencia de infraestructura tecnológica: Riesgos asociados a la continuidad del negocio por cargas de trabajo aún concentradas en servidores on-premise sin esquemas inmutables de recuperación ante desastres en nube.\n\nEn INNOVAIT acompañamos a entidades del sector financiero mediante un portafolio de soluciones diseñado para resolver estos desafíos de manera no intrusiva:\n\n• DocumentTrack: Nuestra plataforma integral de gestión documental inteligente con motor OCR basado en IA y validación automática XML/CUFE, que digitaliza y asegura la custodia legal e inmutable de sus expedientes.\n• Data Hygiene: Servicios especializados en saneamiento, deduplicación y normalización algorítmica de bases de datos para garantizar información íntegra y confiable.\n• Cloud Support AWS: Migración y administración de arquitecturas contenerizadas de alta disponibilidad con monitoreo proactivo 24/7 y respaldos cifrados.\n\n¿Tendría 15 minutos disponibles este próximo martes o miércoles para compartirle cómo hemos implementado estas soluciones en entidades homólogas reduciendo hasta un 40% sus tiempos operativos?\n\nQuedamos a su entera disposición y atentos a su amable respuesta.\n\nAtentamente,\nEquipo de Soluciones Corporativas\nINNOVAIT Colombia\nwww.innovait.co",
+      "followup_variants": [
+        "Javier Andrés, cordial saludo. Quería confirmar si tuvo oportunidad de revisar la propuesta enviada sobre DocumentTrack y modernización cloud.",
+        "Javier Andrés, ¿le parecería coordinar una breve llamada de 10 minutos la próxima semana?"
+      ],
+      "sent_at": "2026-10-28T15:10:00Z"
+    },
+    "discovery": {
+      "need": "Sustitución de archivo físico y desnormalización de base de datos",
+      "timeline": "6 a 8 semanas",
+      "technical_requirements": [
+        "Digitalización y extracción de metadatos OCR con IA integrada a validación CUFE/XML",
+        "Limpieza algorítmica y deduplicación de ~300k registros antes de migración",
+        "Despliegue contenerizado en AWS (ECS + RDS PostgreSQL cifrado) con respaldos automáticos"
+      ],
+      "budget": "Definido para Q4 - En proceso de cotización formal",
+      "authority": "Subgerente de Tecnología y Comité de Compras",
+      "critical_success_factors": [
+        "Cero impacto en operación diaria de agencias",
+        "Cumplimiento normativo Supersolidaria"
+      ]
+    },
+    "gate_history": [
+      {
+        "gate_type": "GATE_1_TARGET",
+        "action": "APPROVE",
+        "user_name": "Director Comercial",
+        "feedback": "Prospecto de alto encaje estratégico aprobado.",
+        "timestamp": "2026-10-28T14:58:00Z"
+      },
+      {
+        "gate_type": "GATE_2_OUTREACH",
+        "action": "APPROVE",
+        "user_name": "Director Comercial",
+        "feedback": "Correo corporativo formal despachado vía Outlook a Javier Andrés Loaiza Mira.",
+        "timestamp": "2026-10-28T15:10:00Z"
+      }
+    ],
+    "created_at": "2026-10-28T14:55:26Z",
+    "updated_at": "2026-10-28T15:10:00Z"
+  },
+  {
+    "opportunity_id": "opp_20261028153000_002",
+    "company_name": "Óptica Colombiana S.A.S.",
+    "website": "https://opticacolombiana.com",
+    "country": "Colombia",
+    "target_services": [
+      "DOC_MANAGER",
+      "DATA_HYGIENE",
+      "CLOUD_INFRA"
+    ],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_2_OUTREACH",
+    "icp_data": {
+      "industry": "Retail Óptico y Salud Visual",
+      "size_employees": 450,
+      "annual_revenue_range": "15M - 30M USD",
+      "current_stack": [
+        "SAP Business One (SAP B1)",
+        "Puntos de venta POS a nivel nacional",
+        "Servidores Microsoft / Azure"
+      ],
+      "pain_points": [
+        "Descentralización de comprobantes fiscales, órdenes de laboratorio y facturación POS en sedes",
+        "Inconsistencias en sincronización de bases de datos entre tiendas y sede central",
+        "Necesidad de integración de trazabilidad documental digital con SAP Business One"
+      ],
+      "fit_score": 91,
+      "icp_reasoning": "Gran potencial para integrar DocumentTrack como repositorio documental y validador CUFE/XML conectado a SAP Business One."
+    },
+    "contacts": [
+      {
+        "name": "Jefe de Sistemas",
+        "role": "Jefe de Sistemas y Soporte ERP (SAP B1)",
+        "email": "comunicaciones@opticacolombiana.com",
+        "phone": "+57 (601) 326 4500",
+        "linkedin_url": "https://www.linkedin.com/company/optica-colombiana/",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": {
+      "channel": "EMAIL",
+      "subject": "INNOVAIT | Integración documental inteligente y trazabilidad CUFE para SAP Business One en Óptica Colombiana",
+      "body_markdown": "A la atención de la Jefatura de Sistemas y Operaciones de Óptica Colombiana S.A.S.,\n\nDesde el equipo de Consultoría Tecnológica de INNOVAIT, seguimos con gran interés la destacada operación retail de Óptica Colombiana y su red de puntos de atención a nivel nacional.\n\nEn empresas con amplia cobertura de tiendas e integración con sistemas ERP como SAP Business One, es común enfrentar tres desafíos clave:\n\n1. Centralización de comprobantes y órdenes: Trazabilidad manual de remisiones, facturas electrónicas y órdenes de laboratorio entre tiendas y sede central.\n2. Consistencia en bases de datos: Duplicidad o demoras en la sincronización de inventarios y clientes entre los puntos POS y el ERP.\n3. Respaldo y custodia inmutable: Garantizar almacenamiento seguro y cumplimiento tributario DIAN de toda la documentación generada en sucursales.\n\nCon nuestra plataforma DocumentTrack y nuestros servicios de Data Hygiene y Cloud Support, facilitamos una integración nativa con SAP B1 para automatizar la radicación, validación CUFE y extracción OCR de documentos comerciales.\n\nNos encantaría coordinar una breve llamada de 15 minutos para presentarles casos de éxito similares en el sector retail.\n\nAtentamente,\nEquipo de Soluciones Corporativas\nINNOVAIT Colombia\nPBX: (601) 326 4500 | contacto@innovait.co",
+      "followup_variants": [
+        "Estimados señores Óptica Colombiana, confirmamos recepción de nuestra comunicación previa.",
+        "¿Sería posible coordinar un breve espacio virtual con el área de TI?"
+      ]
+    },
+    "discovery": null,
+    "gate_history": [
+      {
+        "gate_type": "GATE_1_TARGET",
+        "action": "APPROVE",
+        "user_name": "Director Comercial",
+        "feedback": "Prospecto calificado con alto fit para retail y SAP B1.",
+        "timestamp": "2026-10-28T15:35:00Z"
+      }
+    ],
+    "created_at": "2026-10-28T15:30:00Z",
+    "updated_at": "2026-10-28T15:35:00Z"
+  }
+]
