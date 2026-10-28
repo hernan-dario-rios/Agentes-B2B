@@ -28,6 +28,9 @@ import {
   Save,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Users,
   Target,
   FileCode,
@@ -50,6 +53,26 @@ export default function SalesCommandCenter() {
   const [masterCatalogModalOpen, setMasterCatalogModalOpen] = useState(false);
   const [catalogJsonCopied, setCatalogJsonCopied] = useState(false);
   const [activeCatalogModalTab, setActiveCatalogModalTab] = useState("structured"); // "structured" | "json"
+  const [collapsedCards, setCollapsedCards] = useState({});
+
+  const toggleCardCollapse = (oppId) => {
+    setCollapsedCards((prev) => ({
+      ...prev,
+      [oppId]: !prev[oppId],
+    }));
+  };
+
+  const handleCollapseAll = () => {
+    const all = {};
+    pendingGates.forEach((g) => {
+      all[g.opportunity_id] = true;
+    });
+    setCollapsedCards(all);
+  };
+
+  const handleExpandAll = () => {
+    setCollapsedCards({});
+  };
 
   const handleCopyOutreach = (gate) => {
     const subject = gate.context_details?.subject || gate.key_metrics?.subject || "INNOVAIT | Transformación digital y eficiencia operativa";
@@ -622,13 +645,35 @@ export default function SalesCommandCenter() {
               <p className="text-sm text-slate-600">
                 Oportunidades pausadas en compuertas de decisión. Cada acción dispara inmediatamente el siguiente agente o re-ejecuta con feedback.
               </p>
-              <button
-                onClick={fetchData}
-                className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Actualizar</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                {pendingGates.length > 0 && (
+                  <>
+                    <button
+                      onClick={handleCollapseAll}
+                      className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-xs transition-colors"
+                      title="Contraer todas las tarjetas de prospectos para facilitar la navegación"
+                    >
+                      <ChevronsDownUp className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Contraer Todos</span>
+                    </button>
+                    <button
+                      onClick={handleExpandAll}
+                      className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-xs transition-colors"
+                      title="Expandir todas las tarjetas de prospectos"
+                    >
+                      <ChevronsUpDown className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Expandir Todos</span>
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={fetchData}
+                  className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Actualizar</span>
+                </button>
+              </div>
             </div>
 
             {pendingGates.length === 0 ? (
@@ -648,25 +693,92 @@ export default function SalesCommandCenter() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {pendingGates.map((gate) => (
-                  <div
-                    key={gate.opportunity_id}
-                    className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md transition-all flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <Building2 className="w-5 h-5 text-blue-600" />
-                          <h3 className="text-lg font-bold text-slate-900">{gate.company_name}</h3>
-                          {getGateBadge(gate.gate_type)}
+                {pendingGates.map((gate) => {
+                  const isCollapsed = !!collapsedCards[gate.opportunity_id];
+                  return (
+                    <div
+                      key={gate.opportunity_id}
+                      className={`bg-white rounded-2xl border border-slate-200 shadow-sm transition-all flex flex-col justify-between ${
+                        isCollapsed ? "p-4 hover:border-blue-300 hover:shadow-md" : "p-6 hover:shadow-md"
+                      }`}
+                    >
+                      {/* HEADER DE LA COMPUERTA / PROSPECTO */}
+                      <div
+                        onClick={() => toggleCardCollapse(gate.opportunity_id)}
+                        className="flex items-center justify-between cursor-pointer select-none group"
+                        title={isCollapsed ? "Clic para expandir prospecto" : "Clic para contraer prospecto"}
+                      >
+                        <div className="flex items-center space-x-3 flex-1 min-w-0 pr-4">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleCardCollapse(gate.opportunity_id);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 transition-colors shrink-0"
+                            aria-label={isCollapsed ? "Expandir" : "Contraer"}
+                          >
+                            {isCollapsed ? (
+                              <ChevronRight className="w-5 h-5 text-slate-500 group-hover:text-blue-600" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-slate-500 group-hover:text-blue-600" />
+                            )}
+                          </button>
+
+                          <div className="p-2 rounded-xl bg-blue-50 text-blue-600 shrink-0">
+                            <Building2 className="w-5 h-5" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center space-x-2.5 flex-wrap gap-y-1">
+                              <h3 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                                {gate.company_name}
+                              </h3>
+                              {getGateBadge(gate.gate_type)}
+                              <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 shrink-0">
+                                {gate.agent_name}
+                              </span>
+                            </div>
+
+                            {/* Vista resumen compacta cuando está contraído */}
+                            {isCollapsed && (
+                              <div className="mt-1 flex items-center space-x-3 text-xs text-slate-500 truncate">
+                                <span className="truncate">
+                                  {gate.gate_type === "GATE_2_OUTREACH"
+                                    ? `✉️ Asunto: ${gate.context_details?.subject || gate.key_metrics?.subject || "Propuesta comercial"} • Destinatario: ${gate.key_metrics?.contact || "Tomador de decisión"}`
+                                    : (gate.recommendation_summary ? gate.recommendation_summary.replace(/\n/g, " ").slice(0, 140) + "..." : "Pausado en espera de decisión humana")}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <span className="text-xs text-slate-400 flex items-center">
-                          <Clock className="w-3.5 h-3.5 mr-1" />
-                          Pausado en Gate
-                        </span>
+
+                        <div className="flex items-center space-x-3 shrink-0">
+                          {isCollapsed && gate.key_metrics?.fit_score && (
+                            <span className="hidden sm:inline-flex bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 font-semibold text-emerald-700 text-xs">
+                              Match: {gate.key_metrics.fit_score}/100
+                            </span>
+                          )}
+                          {isCollapsed && (gate.key_metrics?.implementation_fee_usd || gate.key_metrics?.annual_license_usd) && (
+                            <span className="hidden md:inline-flex bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200 font-semibold text-slate-800 text-xs">
+                              Total: ${(Number(gate.key_metrics?.implementation_fee_usd || 0) + Number(gate.key_metrics?.annual_license_usd || 0)).toLocaleString()} USD
+                            </span>
+                          )}
+                          <span className="text-xs text-slate-400 hidden sm:flex items-center">
+                            <Clock className="w-3.5 h-3.5 mr-1" />
+                            Pausado
+                          </span>
+                          <span className="text-xs font-semibold text-blue-600 group-hover:text-blue-800 bg-blue-50/60 group-hover:bg-blue-100/60 px-2.5 py-1 rounded-lg border border-blue-100 transition-colors">
+                            {isCollapsed ? "Expandir" : "Contraer"}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="mt-3 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                      {/* CUERPO COMPLETO Y ACCIONES (Solo cuando está expandido) */}
+                      {!isCollapsed && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in duration-150">
+                          <div>
+                            <div className="mt-1 bg-slate-50 rounded-xl p-4 border border-slate-100">
                         <div className="flex items-center space-x-2 mb-1.5">
                           <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Agente Responsable:</span>
                           <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
@@ -1063,7 +1175,10 @@ export default function SalesCommandCenter() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )}
+              </div>
+            );
+          })}
               </div>
             )}
           </div>
