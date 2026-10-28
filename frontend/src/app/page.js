@@ -25,7 +25,14 @@ import {
   Check,
   ExternalLink,
   Pencil,
-  Save
+  Save,
+  ChevronDown,
+  ChevronUp,
+  Users,
+  Target,
+  FileCode,
+  Eye,
+  Info
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -39,6 +46,10 @@ export default function SalesCommandCenter() {
   const [apiConnected, setApiConnected] = useState(false);
   const [selectedOpp, setSelectedOpp] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [expandedGateDetails, setExpandedGateDetails] = useState({});
+  const [masterCatalogModalOpen, setMasterCatalogModalOpen] = useState(false);
+  const [catalogJsonCopied, setCatalogJsonCopied] = useState(false);
+  const [activeCatalogModalTab, setActiveCatalogModalTab] = useState("structured"); // "structured" | "json"
 
   const handleCopyOutreach = (gate) => {
     const textToCopy = `Asunto: ${gate.key_metrics?.subject || gate.headline || "Propuesta de Transformación INNOVAIT"}\n\n${gate.recommendation_summary}\n\nCanal: Correo Electrónico Corporativo\nRemitente: Equipo Comercial INNOVAIT`;
@@ -290,8 +301,49 @@ export default function SalesCommandCenter() {
         status: "PENDING",
         headline: "Revisión de Arquitectura y Pricing: Clínica Médica",
         agent_name: "Solutions Architect Agent (RAG DocumentTrack)",
-        recommendation_summary: "Propuesta DocumentTrack Tier 2 (Intermedio: 5k-50k docs/mes): 2 Instancias App/Worker con Auto-Scaling, PostgreSQL Multi-AZ Activo/Pasivo (4 vCPU, 8GB RAM, 100GB IOPS), S3 Hot + transición Glacier a 90 días y cifrado AES-256.",
-        key_metrics: { implementation_fee_usd: 8500, annual_license_usd: 18000, discount_percentage: 10, sizing_tier: "Tier 2: Intermedio", compliance: "ISO 27001" },
+        recommendation_summary: "Propuesta DocumentTrack Tier Enterprise: Recepción centralizada de expedientes, validación XML/CUFE, OCR con IA y Saneamiento de Base de Datos.",
+        key_metrics: { implementation_fee_usd: 6800, annual_license_usd: 18000, managed_services_monthly_usd: 1200, discount_percentage: 10, sizing_tier: "Tier Enterprise", compliance: "ISO 27001" },
+        context_details: {
+          pain_points: [
+            "Archivo físico en bodega con más de 120,000 historias clínicas y pagarés en papel",
+            "Duplicidad de registros de pacientes y expedientes entre sedes",
+            "Servidores locales antiguos on-premise sin respaldo cloud ante contingencias"
+          ],
+          stack: ["Windows Server 2012", "SQL Server Express", "Carpetas Compartidas SMB"],
+          contacts: [
+            { name: "Dra. Carolina Martínez", role: "Directora Administrativa", email: "carolina.martinez@clinicamedica.com", linkedin_url: "https://linkedin.com" },
+            { name: "Ing. Roberto Salazar", role: "Director de TI & Sistemas", email: "roberto.salazar@clinicamedica.com", linkedin_url: "https://linkedin.com" }
+          ],
+          discovery_need: "Eliminar el archivo físico en bodega mediante digitalización OCR y sanear base de datos histórica.",
+          technical_requirements: [
+            "Extracción inteligente de metadatos mediante OCR asistido por IA",
+            "Depuración de base de datos desnormalizada (hasta 500k registros)",
+            "Despliegue cloud contenerizado en AWS con cifrado de grado médico y respaldos inmutables"
+          ],
+          pricing_breakdown: [
+            {
+              concept: "Servicio Especializado de Depuración de Base de Datos",
+              package_tier: "Standard Cleansing (hasta 500k registros)",
+              fee_display: "$6,800 USD fijo",
+              catalog_source: "services_catalog.json ➔ DATA_HYGIENE -> STANDARD_CLEANSING",
+              justification: "Saneamiento de anomalías, eliminación de duplicidad de registros y creación de pipelines limpios."
+            },
+            {
+              concept: "Licencia Anual Plataforma DocumentTrack / INNOVAIT DocManager",
+              package_tier: "Tier Empresarial ($1,500 USD/mes × 12 meses)",
+              fee_display: "$18,000 USD/año",
+              catalog_source: "services_catalog.json ➔ DOC_MANAGER -> ENTERPRISE",
+              justification: "Recepción centralizada de expedientes, validación XML/CUFE y motor de extracción OCR con IA."
+            },
+            {
+              concept: "Administración, Seguridad y Soporte Cloud 24/7",
+              package_tier: "Managed Cloud Support",
+              fee_display: "$1,200 USD/mes",
+              catalog_source: "services_catalog.json ➔ CLOUD_INFRA -> MANAGED_CLOUD_SUPPORT",
+              justification: "Despliegue de landing zone segura en AWS, copias inmutables contra ransomware y monitoreo proactivo 24/7."
+            }
+          ]
+        },
         waiting_since: new Date().toISOString(),
       }
     ];
@@ -628,6 +680,283 @@ export default function SalesCommandCenter() {
                                 Canal: {gate.key_metrics.channel}
                               </span>
                             )}
+                          </div>
+                        )}
+
+                        {/* Barra de Expansión / Acceso a Sustentación */}
+                        <div className="mt-4 pt-3 border-t border-slate-200/70 flex flex-wrap items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedGateDetails((prev) => ({
+                                ...prev,
+                                [gate.opportunity_id]: !prev[gate.opportunity_id],
+                              }))
+                            }
+                            className="inline-flex items-center space-x-2 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3.5 py-1.5 rounded-xl border border-blue-200 transition-all shadow-xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>
+                              {expandedGateDetails[gate.opportunity_id]
+                                ? "Ocultar Sustentación Técnica, Contactos y Precios"
+                                : "🔍 Ver Sustentación Completa de Precios, Contactos y Dolores Detectados"}
+                            </span>
+                            {expandedGateDetails[gate.opportunity_id] ? (
+                              <ChevronUp className="w-3.5 h-3.5 ml-0.5" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 ml-0.5" />
+                            )}
+                          </button>
+
+                          <div className="flex items-center space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => setMasterCatalogModalOpen(true)}
+                              className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-700 hover:text-blue-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs transition-all"
+                            >
+                              <FileCode className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Ver Archivo Maestro (services_catalog.json)</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Contenido Desplegable de Sustentación */}
+                        {expandedGateDetails[gate.opportunity_id] && (
+                          <div className="mt-4 pt-4 border-t border-slate-200/80 space-y-4 animate-in fade-in duration-200">
+                            {/* 1. SECCIÓN DE SUSTENTACIÓN DE PRECIOS Y FÓRMULAS (GATE 4) */}
+                            {gate.gate_type === "GATE_4_ARCHITECT" && (
+                              <div className="bg-gradient-to-br from-blue-50/60 via-indigo-50/40 to-slate-50 p-4 rounded-xl border border-blue-100 space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <DollarSign className="w-4 h-4 text-blue-700" />
+                                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                      Sustentación de Precios y Fórmulas de Cotización
+                                    </h4>
+                                  </div>
+                                  <button
+                                    onClick={() => setMasterCatalogModalOpen(true)}
+                                    className="text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline flex items-center space-x-1"
+                                  >
+                                    <span>Ver matriz oficial en services_catalog.json</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </button>
+                                </div>
+
+                                <p className="text-xs text-slate-600">
+                                  Los valores han sido orquestados por el <strong>Agente Solutions Architect</strong> cruzando los requerimientos técnicos levantados en el diagnóstico con el tarifario base oficial de INNOVAIT:
+                                </p>
+
+                                {/* Desglose de cada rubro */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  {/* Rubro 1: Depuración BD */}
+                                  <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                                          Implementación Fija
+                                        </span>
+                                        <Database className="w-4 h-4 text-purple-600" />
+                                      </div>
+                                      <h5 className="text-xs font-bold text-slate-800 mt-1">
+                                        Depuración de Base de Datos
+                                      </h5>
+                                      <p className="text-xs font-extrabold text-slate-900 mt-1">
+                                        ${gate.key_metrics?.implementation_fee_usd?.toLocaleString() || "6,800"} USD
+                                      </p>
+                                      <div className="mt-2 text-[11px] text-slate-600 space-y-1">
+                                        <p>
+                                          <strong>Nivel:</strong> Standard Cleansing (hasta 500k registros).
+                                        </p>
+                                        <p>
+                                          <strong>Origen:</strong> <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px] text-purple-800">services_catalog.json ➔ DATA_HYGIENE</code>
+                                        </p>
+                                        <p className="text-slate-500 italic text-[10px] pt-1">
+                                          Justificación: Diagnóstico identificó ~300k registros desnormalizados con duplicidad e inconsistencia en datos maestros.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Rubro 2: Licencia DocManager */}
+                                  <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                                          Licenciamiento Anual
+                                        </span>
+                                        <FileText className="w-4 h-4 text-blue-600" />
+                                      </div>
+                                      <h5 className="text-xs font-bold text-slate-800 mt-1">
+                                        Plataforma INNOVAIT DocManager
+                                      </h5>
+                                      <p className="text-xs font-extrabold text-slate-900 mt-1">
+                                        ${gate.key_metrics?.annual_license_usd?.toLocaleString() || "18,000"} USD/año
+                                      </p>
+                                      <div className="mt-2 text-[11px] text-slate-600 space-y-1">
+                                        <p>
+                                          <strong>Nivel:</strong> Tier Enterprise ($1,500 USD/mes × 12 meses).
+                                        </p>
+                                        <p>
+                                          <strong>Origen:</strong> <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px] text-blue-800">services_catalog.json ➔ DOC_MANAGER</code>
+                                        </p>
+                                        <p className="text-slate-500 italic text-[10px] pt-1">
+                                          Justificación: Sustitución total del archivo físico en bodega mediante OCR semántico con IA y validación XML/CUFE.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Rubro 3: Soporte Cloud */}
+                                  <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                                          Operación Mensual
+                                        </span>
+                                        <Cloud className="w-4 h-4 text-emerald-600" />
+                                      </div>
+                                      <h5 className="text-xs font-bold text-slate-800 mt-1">
+                                        Managed Cloud Support AWS
+                                      </h5>
+                                      <p className="text-xs font-extrabold text-slate-900 mt-1">
+                                        ${gate.key_metrics?.managed_services_monthly_usd?.toLocaleString() || "1,200"} USD/mes
+                                      </p>
+                                      <div className="mt-2 text-[11px] text-slate-600 space-y-1">
+                                        <p>
+                                          <strong>Nivel:</strong> Managed Cloud Support (24/7 + SLA de soporte).
+                                        </p>
+                                        <p>
+                                          <strong>Origen:</strong> <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px] text-emerald-800">services_catalog.json ➔ CLOUD_INFRA</code>
+                                        </p>
+                                        <p className="text-slate-500 italic text-[10px] pt-1">
+                                          Justificación: Mitiga vulnerabilidad de servidores on-premise mediante landing zone segura en AWS y copias inmutables.
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 2. SECCIÓN: TOMADORES DE DECISIÓN Y CONTACTOS CLAVE */}
+                            <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <Users className="w-4 h-4 text-indigo-600" />
+                                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    Contactos Clave y Tomadores de Decisión Detectados
+                                  </h4>
+                                </div>
+                                <span className="text-[11px] text-slate-500">
+                                  Enriquecido vía Apollo.io & Hunter.io
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                                {(gate.context_details?.contacts && gate.context_details.contacts.length > 0
+                                  ? gate.context_details.contacts
+                                  : [
+                                      { name: "Colette Rodriguez", role: "Directora de Agencia", email: "colette.rodriguez@jfk.com.co", linkedin_url: "https://www.linkedin.com/in/colette-rodriguez-466a9388" },
+                                      { name: "Luz Adriana Gaviria Osorio", role: "Directora", email: "luz.gaviria@jfk.com.co", linkedin_url: "https://www.linkedin.com/in/luz-adriana-gaviria-osorio-99b50b55" },
+                                      { name: "Leidy Garcia", role: "Directora Contabilidad", email: "leidy.garcia@jfk.com.co", linkedin_url: "https://www.linkedin.com/in/leidy-garcia-8348b615a" }
+                                    ]
+                                ).map((contact, cIdx) => (
+                                  <div
+                                    key={cIdx}
+                                    className="bg-white p-3 rounded-lg border border-slate-200/80 flex flex-col justify-between hover:border-indigo-300 transition-colors shadow-2xs"
+                                  >
+                                    <div>
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold text-slate-800">{contact.name}</span>
+                                        {contact.linkedin_url && (
+                                          <a
+                                            href={contact.linkedin_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-800"
+                                            title="Ver perfil de LinkedIn"
+                                          >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                          </a>
+                                        )}
+                                      </div>
+                                      <p className="text-[11px] text-slate-500 font-medium">{contact.role || "Cargo no especificado"}</p>
+                                    </div>
+                                    {contact.email && (
+                                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                                        <code className="text-indigo-700 font-mono text-[10px] truncate">{contact.email}</code>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (navigator?.clipboard) {
+                                              navigator.clipboard.writeText(contact.email);
+                                              alert(`Correo copiado: ${contact.email}`);
+                                            }
+                                          }}
+                                          className="text-slate-400 hover:text-slate-700 ml-1 p-0.5"
+                                          title="Copiar correo"
+                                        >
+                                          <Copy className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* 3. SECCIÓN: RELACIÓN ENTRE DOLORES DETECTADOS Y SOLUCIÓN TÉCNICA */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {/* Dolores Detectados */}
+                              <div className="bg-rose-50/50 p-3.5 rounded-xl border border-rose-200/70">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <Target className="w-4 h-4 text-rose-600" />
+                                  <h4 className="text-xs font-bold text-rose-900 uppercase tracking-wider">
+                                    Dolores Críticos Detectados en el Prospecto
+                                  </h4>
+                                </div>
+                                <ul className="space-y-1.5 text-xs text-rose-950">
+                                  {(gate.context_details?.pain_points && gate.context_details.pain_points.length > 0
+                                    ? gate.context_details.pain_points
+                                    : [
+                                        "Archivo físico en bodega con acumulación masiva de pagarés y expedientes en papel",
+                                        "Duplicidad e inconsistencia de registros de asociados/clientes en base de datos",
+                                        "Servidores locales antiguos on-premise sin respaldo cloud ante contingencias o pérdida de datos"
+                                      ]
+                                  ).map((pain, pIdx) => (
+                                    <li key={pIdx} className="flex items-start space-x-1.5">
+                                      <span className="text-rose-600 font-bold">•</span>
+                                      <span>{pain}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+
+                              {/* Mapeo a la Solución Propuesta */}
+                              <div className="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-200/70">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                                    Requerimientos y Módulos de Solución Asignados
+                                  </h4>
+                                </div>
+                                <ul className="space-y-1.5 text-xs text-emerald-950">
+                                  {(gate.context_details?.technical_requirements && gate.context_details.technical_requirements.length > 0
+                                    ? gate.context_details.technical_requirements
+                                    : [
+                                        "Digitalización y extracción de metadatos OCR con IA integrada a validación CUFE/XML",
+                                        "Limpieza algorítmica y deduplicación de ~300k registros antes de migración",
+                                        "Despliegue contenerizado en AWS (ECS + RDS PostgreSQL cifrado) con respaldos automáticos"
+                                      ]
+                                  ).map((req, rIdx) => (
+                                    <li key={rIdx} className="flex items-start space-x-1.5">
+                                      <span className="text-emerald-600 font-bold">✓</span>
+                                      <span>{req}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1405,6 +1734,144 @@ export default function SalesCommandCenter() {
                 <Save className="w-4 h-4" />
                 <span>{pricesSaving ? "Guardando..." : "Guardar Cambios"}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ARCHIVO MAESTRO SERVICES_CATALOG.JSON */}
+      {masterCatalogModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <FileCode className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Archivo Maestro de Soluciones y Tarifas Base
+                  </h3>
+                  <p className="text-xs text-slate-500 font-mono">
+                    backend/app/knowledge/services_catalog.json
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setMasterCatalogModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 mt-3">
+              Este archivo JSON maestro es la <strong>fuente única de verdad</strong> de donde los agentes consultan módulos técnicos, alcances y calculan las tarifas de cotización (Gate 4 Arquitectura & Pricing).
+            </p>
+
+            {/* Selector de Vistas */}
+            <div className="flex items-center space-x-2 mt-3 mb-2 border-b border-slate-200">
+              <button
+                onClick={() => setActiveCatalogModalTab("structured")}
+                className={`px-3 py-1.5 text-xs font-bold border-b-2 transition-all ${
+                  activeCatalogModalTab === "structured"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Vista de Módulos & Tarifas
+              </button>
+              <button
+                onClick={() => setActiveCatalogModalTab("json")}
+                className={`px-3 py-1.5 text-xs font-bold border-b-2 transition-all ${
+                  activeCatalogModalTab === "json"
+                    ? "border-blue-600 text-blue-600"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                Código JSON Maestro (Crudo)
+              </button>
+            </div>
+
+            {/* Contenido según Tab */}
+            <div className="flex-1 overflow-y-auto my-2 pr-1">
+              {activeCatalogModalTab === "structured" ? (
+                <div className="space-y-3">
+                  {catalog?.services && catalog.services.length > 0 ? (
+                    catalog.services.map((srv) => (
+                      <div key={srv.id} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-bold text-slate-900">{srv.name}</span>
+                          <code className="text-[10px] font-mono bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-semibold">{srv.id}</code>
+                        </div>
+                        <p className="text-xs text-slate-600 mb-2">{srv.summary}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-2">
+                          {srv.pricing_tiers && Object.entries(srv.pricing_tiers).map(([tierKey, tierVal]) => (
+                            <div key={tierKey} className="bg-white p-2.5 rounded-lg border border-slate-200 text-xs shadow-2xs">
+                              <span className="font-semibold text-slate-800 block text-[11px]">{tierVal.name || tierKey}</span>
+                              <div className="text-[11px] text-blue-700 font-bold mt-1">
+                                {tierVal.fixed_fee_usd && `Fijo: $${tierVal.fixed_fee_usd.toLocaleString()} USD`}
+                                {tierVal.monthly_fee_usd && `Mensual: $${tierVal.monthly_fee_usd.toLocaleString()} USD`}
+                                {tierVal.implementation_fee_usd && ` (Impl: $${tierVal.implementation_fee_usd.toLocaleString()})`}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-4 bg-slate-50 rounded-xl text-center text-xs text-slate-500">
+                      Cargando estructura del catálogo maestro...
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="relative">
+                  <pre className="bg-slate-950 text-emerald-400 p-4 rounded-xl text-xs font-mono overflow-auto max-h-[50vh] leading-relaxed">
+                    {JSON.stringify(catalog, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+
+            {/* Footer del Modal */}
+            <div className="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between">
+              <button
+                onClick={() => {
+                  if (navigator?.clipboard) {
+                    navigator.clipboard.writeText(JSON.stringify(catalog, null, 2));
+                    setCatalogJsonCopied(true);
+                    setTimeout(() => setCatalogJsonCopied(false), 2000);
+                  }
+                }}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+              >
+                {catalogJsonCopied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-700">¡Copiado al Portapapeles!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copiar JSON Completo</span>
+                  </>
+                )}
+              </button>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setMasterCatalogModalOpen(false);
+                    setActiveTab("catalog");
+                  }}
+                  className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-all"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Modificar Tarifas en Pestaña Catálogo</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

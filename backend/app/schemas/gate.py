@@ -56,4 +56,5 @@ class PendingGateSummary(BaseModel):
     agent_name: str
     recommendation_summary: str
     key_metrics: Dict[str, Any] = Field(default_factory=dict)
+    context_details: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Sustentación detallada, contactos, dolores y desglose de precios")
     waiting_since: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

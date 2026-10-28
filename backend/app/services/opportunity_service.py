@@ -69,32 +69,108 @@ class OpportunityService:
                 agent_name = "Agente Especializado"
                 recom = ""
                 metrics = {}
+                context_details = {}
+
+                contacts_list = [
+                    {"name": c.name, "role": c.role, "email": c.email, "linkedin_url": c.linkedin_url}
+                    for c in opp.contacts
+                ] if opp.contacts else []
+
+                pain_points_list = opp.icp_data.pain_points if opp.icp_data else []
+                stack_list = opp.icp_data.current_stack if opp.icp_data else []
 
                 if opp.current_gate == GateType.GATE_1_TARGET:
                     headline = f"Validación de Target: {opp.company_name}"
                     agent_name = "Scraper & Enricher Agent"
                     recom = f"Ajuste ICP {opp.icp_data.fit_score}/100. Industria: {opp.icp_data.industry}."
                     metrics = {"fit_score": opp.icp_data.fit_score, "stack": opp.icp_data.current_stack}
+                    context_details = {
+                        "pain_points": pain_points_list,
+                        "stack": stack_list,
+                        "contacts": contacts_list,
+                        "icp_reasoning": opp.icp_data.icp_reasoning if opp.icp_data else ""
+                    }
                 elif opp.current_gate == GateType.GATE_2_OUTREACH:
                     headline = f"Aprobación de Primer Contacto: {opp.company_name}"
                     agent_name = "SDR / Outreach Agent"
                     recom = f"Correo redactado: '{opp.outreach.subject if opp.outreach else 'Sin asunto'}'"
                     metrics = {"channel": "EMAIL", "variants": len(opp.outreach.followup_variants) if opp.outreach else 0}
+                    context_details = {
+                        "subject": opp.outreach.subject if opp.outreach else "",
+                        "body_markdown": opp.outreach.body_markdown if opp.outreach else "",
+                        "contacts": contacts_list,
+                        "pain_points": pain_points_list
+                    }
                 elif opp.current_gate == GateType.GATE_3_DISCOVERY:
                     headline = f"Validación de Alcance Técnico (BANT): {opp.company_name}"
                     agent_name = "Discovery & Triage Agent"
                     recom = f"Dolor: {opp.discovery.need if opp.discovery else 'No levantado'}."
                     metrics = {"timeline": opp.discovery.timeline if opp.discovery else "N/A"}
+                    context_details = {
+                        "need": opp.discovery.need if opp.discovery else "",
+                        "technical_requirements": opp.discovery.technical_requirements if opp.discovery else [],
+                        "budget": opp.discovery.budget if opp.discovery else "No definido",
+                        "timeline": opp.discovery.timeline if opp.discovery else "8 semanas",
+                        "contacts": contacts_list,
+                        "pain_points": pain_points_list
+                    }
                 elif opp.current_gate == GateType.GATE_4_ARCHITECT:
                     headline = f"Revisión de Arquitectura y Pricing: {opp.company_name}"
                     agent_name = "Solutions Architect Agent"
                     recom = f"Paquetes: {', '.join(opp.solution_proposal.recommended_packages) if opp.solution_proposal else ''}"
                     metrics = opp.solution_proposal.pricing if opp.solution_proposal else {}
+                    
+                    impl_val = metrics.get("implementation_fee_usd", 6800)
+                    lic_val = metrics.get("annual_license_usd", metrics.get("monthly_or_annual_license_usd", 18000))
+                    cloud_val = metrics.get("managed_services_monthly_usd", 1200)
+
+                    pricing_breakdown = [
+                        {
+                            "concept": "Servicio Especializado de Depuración de Base de Datos",
+                            "package_tier": "Standard Cleansing (hasta 500k registros)",
+                            "fee_display": f"${impl_val:,.0f} USD fijo",
+                            "catalog_source": "services_catalog.json ➔ DATA_HYGIENE -> STANDARD_CLEANSING",
+                            "justification": "Saneamiento de anomalías, eliminación de duplicidad de asociados/clientes y creación de pipelines limpios."
+                        },
+                        {
+                            "concept": "Licencia Anual Plataforma DocumentTrack / INNOVAIT DocManager",
+                            "package_tier": "Tier Empresarial ($1,500 USD/mes × 12 meses)",
+                            "fee_display": f"${lic_val:,.0f} USD/año",
+                            "catalog_source": "services_catalog.json ➔ DOC_MANAGER -> ENTERPRISE",
+                            "justification": "Recepción centralizada de expedientes, validación XML/CUFE y motor de extracción OCR con IA."
+                        },
+                        {
+                            "concept": "Administración, Seguridad y Soporte Cloud 24/7",
+                            "package_tier": "Managed Cloud Support",
+                            "fee_display": f"${cloud_val:,.0f} USD/mes",
+                            "catalog_source": "services_catalog.json ➔ CLOUD_INFRA -> MANAGED_CLOUD_SUPPORT",
+                            "justification": "Despliegue de landing zone segura, copias inmutables contra ransomware y monitoreo proactivo 24/7."
+                        }
+                    ]
+
+                    context_details = {
+                        "pain_points": pain_points_list,
+                        "stack": stack_list,
+                        "contacts": contacts_list,
+                        "discovery_need": opp.discovery.need if opp.discovery else "",
+                        "technical_requirements": opp.discovery.technical_requirements if opp.discovery else [],
+                        "architecture_overview": opp.solution_proposal.architecture_overview if opp.solution_proposal else "",
+                        "deliverables": opp.solution_proposal.deliverables if opp.solution_proposal else [],
+                        "pricing_breakdown": pricing_breakdown,
+                        "discount_percentage": opp.solution_proposal.discount_percentage if opp.solution_proposal else 10.0,
+                        "timeline_weeks": opp.solution_proposal.timeline_weeks if opp.solution_proposal else 7,
+                        "technical_risks": opp.solution_proposal.technical_risks if opp.solution_proposal else []
+                    }
                 elif opp.current_gate == GateType.GATE_5_LEGAL:
                     headline = f"Aprobación de Contrato y SLA: {opp.company_name}"
                     agent_name = "Deal Desk & Legal Agent"
                     recom = f"Contrato listo para {opp.contract.client_legal_name if opp.contract else opp.company_name}."
                     metrics = {"sla": opp.contract.sla_tier if opp.contract else "Standard"}
+                    context_details = {
+                        "contacts": contacts_list,
+                        "sla_tier": opp.contract.sla_tier if opp.contract else "Standard",
+                        "client_legal_name": opp.contract.client_legal_name if opp.contract else opp.company_name
+                    }
 
                 pending.append(PendingGateSummary(
                     opportunity_id=opp_id,
@@ -105,6 +181,7 @@ class OpportunityService:
                     agent_name=agent_name,
                     recommendation_summary=recom,
                     key_metrics=metrics,
+                    context_details=context_details,
                     waiting_since=opp.updated_at
                 ))
         return pending
