@@ -421,6 +421,11 @@ export default function SalesCommandCenter() {
         });
         if (res.ok) {
           await fetchData();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          console.error("Error from backend:", errData);
+          alert(`Error del orquestador (${res.status}): ${errData.detail || "No fue posible registrar la decisión."}`);
+          return;
         }
       } else {
         // Simulación interactiva local
@@ -428,7 +433,8 @@ export default function SalesCommandCenter() {
         alert(`Decisión [${action}] registrada exitosamente para la oportunidad.`);
       }
     } catch (e) {
-      alert("Error enviando decisión al orquestador.");
+      console.error("Error enviando decisión:", e);
+      alert(`Error de comunicación con el orquestador: ${e.message || "Verifique la conexión al backend."}`);
     } finally {
       setSubmitting(false);
       setModifyModalOpen(false);

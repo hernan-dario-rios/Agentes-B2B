@@ -6,10 +6,14 @@ from datetime import datetime, timezone
 from langgraph.types import Command
 
 from app.schemas.opportunity import OpportunityContext, PipelineStage, ContactPerson
-from app.schemas.gate import GateDecisionPayload, GateStatus, PendingGateSummary, GateType, GateAction
+from app.schemas.gate import GateDecisionPayload, GateStatus, PendingGateSummary, GateType, GateAction, GateHistoryRecord
 from app.graph.state import AgentState
 from app.graph.workflow import sales_pipeline_graph
-from app.graph.nodes.sdr import _apply_fallback_outreach
+from app.graph.nodes.enricher import enricher_agent_node
+from app.graph.nodes.sdr import sdr_agent_node, _apply_fallback_outreach
+from app.graph.nodes.discovery import discovery_agent_node
+from app.graph.nodes.architect import solutions_architect_agent_node
+from app.graph.nodes.legal import legal_agent_node
 
 logger = logging.getLogger(__name__)
 
@@ -292,46 +296,154 @@ class OpportunityService:
         opp_id: str,
         payload: GateDecisionPayload
     ) -> Optional[OpportunityContext]:
-        config = {"configurable": {"thread_id": opp_id}}
-        state_snapshot = sales_pipeline_graph.get_state(config)
-        
-        if not state_snapshot:
-            logger.warning(f"No se encontró estado de LangGraph para opp_id: {opp_id}, verificando en memoria")
-            if opp_id in self.opportunities:
-                opp = self.opportunities[opp_id]
-                if payload.action.value == "APPROVE" and opp.current_gate == GateType.GATE_2_OUTREACH and opp.outreach:
-                    if payload.modifications and isinstance(payload.modifications, dict):
-                        if payload.modifications.get("final_subject"):
-                            opp.outreach.subject = str(payload.modifications["final_subject"]).strip()
-                        if payload.modifications.get("final_body"):
-                            opp.outreach.body_markdown = str(payload.modifications["final_body"]).strip()
-                    opp.outreach.sent_at = datetime.now(timezone.utc)
-                    opp.stage = PipelineStage.OUTREACH_ACTIVE
-                    self._save_db()
-                return opp
+        if opp_id not in self.opportunities:
+            logger.error(f"[OpportunityService] Oportunidad {opp_id} no encontrada en DB")
             return None
 
-        # Reanudar la ejecución en LangGraph usando Command(resume=...)
-        resume_payload = {
-            "action": payload.action.value,
-            "feedback": payload.feedback,
-            "modifications": payload.modifications,
-            "user_name": payload.user_name
-        }
-        
-        logger.info(f"Reanudando grafo para {opp_id} con acción {payload.action.value}...")
-        sales_pipeline_graph.invoke(Command(resume=resume_payload), config=config)
-        
-        # Leer el nuevo estado tras avanzar o re-ejecutar
-        new_state = sales_pipeline_graph.get_state(config)
-        if new_state and new_state.values:
-            updated_opp = new_state.values.get("opportunity")
-            if updated_opp:
-                self.opportunities[opp_id] = updated_opp
-                self._save_db()
-                return updated_opp
+        opp = self.opportunities[opp_id]
+        config = {"configurable": {"thread_id": opp_id}}
+        state_snapshot = sales_pipeline_graph.get_state(config)
+
+        # Si el hilo en memoria de LangGraph está vivo y detenido en una compuerta activa
+        has_active_interrupt = bool(state_snapshot and state_snapshot.values and state_snapshot.next)
+
+        if has_active_interrupt:
+            try:
+                resume_payload = {
+                    "action": payload.action.value,
+                    "feedback": payload.feedback,
+                    "modifications": payload.modifications,
+                    "user_name": payload.user_name
+                }
+                logger.info(f"Reanudando grafo activo para {opp_id} con acción {payload.action.value}...")
+                sales_pipeline_graph.invoke(Command(resume=resume_payload), config=config)
+
+                new_state = sales_pipeline_graph.get_state(config)
+                if new_state and new_state.values:
+                    updated_opp = new_state.values.get("opportunity")
+                    if updated_opp:
+                        self.opportunities[opp_id] = updated_opp
+                        self._save_db()
+                        return updated_opp
+            except Exception as e:
+                logger.warning(f"Excepción al reanudar LangGraph en memoria ({e}). Aplicando avance determinístico seguro...")
+
+        # Avance determinístico tolerante a caídas de memoria o reinicios del proceso
+        updated_opp = self._advance_gate_deterministic(opp, payload)
+        self.opportunities[opp_id] = updated_opp
         self._save_db()
-        return self.opportunities.get(opp_id)
+        return updated_opp
+
+    def _advance_gate_deterministic(
+        self,
+        opp: OpportunityContext,
+        payload: GateDecisionPayload
+    ) -> OpportunityContext:
+        action = payload.action
+        current_gate = opp.current_gate
+        user_name = payload.user_name or "Director Comercial (Comando Central)"
+        feedback = payload.feedback
+        modifications = payload.modifications or {}
+
+        # 1. Registrar decisión humana en el historial inmutable de la oportunidad
+        opp.gate_history.append(
+            GateHistoryRecord(
+                gate_type=current_gate or GateType.GATE_1_TARGET,
+                action=action,
+                user_name=user_name,
+                feedback=feedback,
+                timestamp=datetime.now(timezone.utc)
+            )
+        )
+        opp.updated_at = datetime.now(timezone.utc)
+
+        # 2. OVERRIDE: Toma de control manual del flujo
+        if action == GateAction.OVERRIDE:
+            opp.stage = PipelineStage.MANUAL_TAKEOVER
+            return opp
+
+        # 3. MODIFY: Aplicar feedback y re-ejecutar el agente actual
+        if action == GateAction.MODIFY:
+            opp.last_human_feedback = feedback
+            state = AgentState(
+                opportunity=opp,
+                human_action=action,
+                human_feedback=feedback,
+                human_modifications=modifications
+            )
+            if current_gate == GateType.GATE_1_TARGET:
+                new_state = enricher_agent_node(state)
+                return new_state.opportunity
+            elif current_gate == GateType.GATE_2_OUTREACH:
+                new_state = sdr_agent_node(state)
+                return new_state.opportunity
+            elif current_gate == GateType.GATE_3_DISCOVERY:
+                new_state = discovery_agent_node(state)
+                return new_state.opportunity
+            elif current_gate == GateType.GATE_4_ARCHITECT:
+                if opp.solution_proposal and "discount_percentage" in modifications:
+                    try:
+                        opp.solution_proposal.discount_percentage = float(modifications["discount_percentage"])
+                    except (ValueError, TypeError):
+                        pass
+                new_state = solutions_architect_agent_node(state)
+                return new_state.opportunity
+            elif current_gate == GateType.GATE_5_LEGAL:
+                new_state = legal_agent_node(state)
+                return new_state.opportunity
+            return opp
+
+        # 4. APPROVE: Avanzar la oportunidad hacia la siguiente fase
+        state = AgentState(
+            opportunity=opp,
+            human_action=action,
+            human_feedback=feedback,
+            human_modifications=modifications
+        )
+
+        if current_gate == GateType.GATE_1_TARGET:
+            # Gate 1 Aprobado -> SDR Agent redacta comunicación personalizada -> Pausar en Gate 2
+            new_state = sdr_agent_node(state)
+            opp = new_state.opportunity
+            opp.stage = PipelineStage.WAITING_HUMAN_APPROVAL
+            opp.current_gate = GateType.GATE_2_OUTREACH
+
+        elif current_gate == GateType.GATE_2_OUTREACH:
+            # Gate 2 Aprobado (Confirmar Envío Outlook) -> Discovery Agent -> Pausar en Gate 3
+            if modifications and isinstance(modifications, dict):
+                if modifications.get("final_subject") and opp.outreach:
+                    opp.outreach.subject = str(modifications["final_subject"]).strip()
+                if modifications.get("final_body") and opp.outreach:
+                    opp.outreach.body_markdown = str(modifications["final_body"]).strip()
+            if opp.outreach:
+                opp.outreach.sent_at = datetime.now(timezone.utc)
+            opp.stage = PipelineStage.WAITING_HUMAN_APPROVAL
+            opp.current_gate = GateType.GATE_3_DISCOVERY
+            new_state = discovery_agent_node(state)
+            opp = new_state.opportunity
+            opp.stage = PipelineStage.WAITING_HUMAN_APPROVAL
+            opp.current_gate = GateType.GATE_3_DISCOVERY
+
+        elif current_gate == GateType.GATE_3_DISCOVERY:
+            # Gate 3 Aprobado -> Solutions Architect -> Propuesta Técnica y Pricing -> Pausar en Gate 4
+            new_state = solutions_architect_agent_node(state)
+            opp = new_state.opportunity
+            opp.stage = PipelineStage.WAITING_HUMAN_APPROVAL
+            opp.current_gate = GateType.GATE_4_ARCHITECT
+
+        elif current_gate == GateType.GATE_4_ARCHITECT:
+            # Gate 4 Aprobado -> Deal Desk & Legal Agent -> Contrato y SLA -> Pausar en Gate 5
+            new_state = legal_agent_node(state)
+            opp = new_state.opportunity
+            opp.stage = PipelineStage.WAITING_HUMAN_APPROVAL
+            opp.current_gate = GateType.GATE_5_LEGAL
+
+        elif current_gate == GateType.GATE_5_LEGAL:
+            # Gate 5 Aprobado -> Acuerdo Firmado y Venta Ganada (WON)
+            opp.stage = PipelineStage.WON
+            opp.current_gate = None
+
+        return opp
 
 
 # Singleton

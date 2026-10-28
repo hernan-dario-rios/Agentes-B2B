@@ -1,5 +1,6 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
@@ -34,6 +35,15 @@ app.add_middleware(
 app.include_router(opportunities_router, prefix=settings.API_V1_PREFIX)
 app.include_router(gates_router, prefix=settings.API_V1_PREFIX)
 app.include_router(catalog_router, prefix=settings.API_V1_PREFIX)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Error no controlado en {request.url}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Error interno en el orquestador: {str(exc)}"}
+    )
 
 
 @app.get("/")
