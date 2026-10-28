@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any
 from langgraph.types import interrupt
 from app.graph.state import AgentState
-from app.schemas.gate import GateAction, GateHistoryRecord
+from app.schemas.gate import GateAction, GateHistoryRecord, GateType
 from app.schemas.opportunity import PipelineStage
 
 logger = logging.getLogger(__name__)
@@ -68,6 +68,15 @@ def human_gate_node(state: AgentState) -> AgentState:
             f"El humano solicitó modificaciones (MODIFY) en {current_gate}: '{feedback}'. Re-ejecutando agente."
         )
     else:  # APPROVE
+        if current_gate == GateType.GATE_2_OUTREACH and opp.outreach:
+            if modifications and isinstance(modifications, dict):
+                if modifications.get("final_subject"):
+                    opp.outreach.subject = str(modifications["final_subject"]).strip()
+                if modifications.get("final_body"):
+                    opp.outreach.body_markdown = str(modifications["final_body"]).strip()
+            opp.outreach.sent_at = datetime.now(timezone.utc)
+            opp.stage = PipelineStage.OUTREACH_ACTIVE
+
         state.reasoning_logs.append(
             f"El humano aprobó con éxito (APPROVE) la compuerta {current_gate}. Continuando a siguiente fase."
         )

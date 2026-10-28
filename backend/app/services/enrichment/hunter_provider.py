@@ -16,6 +16,8 @@ class HunterProvider(BaseEnricherProvider):
             return None
 
         clean_domain = domain.replace("https://", "").replace("http://", "").strip("/").split("/")[0]
+        if clean_domain.startswith("www."):
+            clean_domain = clean_domain[4:]
         logger.info(f"[HunterProvider] Consultando dominio {clean_domain}")
 
         contacts = []

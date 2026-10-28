@@ -10,6 +10,16 @@ from app.services.enrichment.orchestrator import enrichment_orchestrator
 logger = logging.getLogger(__name__)
 
 
+def _clean_company_domain(website: str | None, company_name: str) -> str:
+    if website:
+        d = website.replace("https://", "").replace("http://", "").strip("/").split("/")[0]
+        if d.startswith("www."):
+            d = d[4:]
+        if "." in d:
+            return d
+    return f"{company_name.lower().replace(' ', '')}.com"
+
+
 def enricher_agent_node(state: AgentState) -> AgentState:
     """
     Agente 1: Scraper & Enricher Agent.
@@ -32,7 +42,7 @@ def enricher_agent_node(state: AgentState) -> AgentState:
         prompt = f"""
         Actúa como un analista senior de prospección B2B tecnológica para INNOVAIT.
         Nuestros servicios son:
-        1. Gestión Documental Empresarial (INNOVAIT DocManager) [Producto Insignia]
+        1. Gestión Documental Empresarial (DocumentTrack) [Producto Insignia]
         2. Orden y Depuración de Bases de Datos
         3. Infraestructuras Cloud (AWS/Azure/GCP)
         4. Automatización con IA
@@ -80,8 +90,9 @@ def enricher_agent_node(state: AgentState) -> AgentState:
                         linkedin_url=c.get("linkedin_url")
                     ))
 
+            clean_domain = _clean_company_domain(opp.website, opp.company_name)
             for c in data.get("suggested_contacts", []):
-                email = c.get("email", f"contacto@{opp.company_name.lower().replace(' ', '')}.com")
+                email = c.get("email", f"contacto@{clean_domain}")
                 if email not in existing_emails:
                     existing_emails.add(email)
                     opp.contacts.append(ContactPerson(
@@ -123,7 +134,7 @@ def _apply_fallback_enrichment(opp, enriched_api_data=None):
           "Servidores locales sin respaldo en nube ni plan de recuperación ante desastres"
         ],
         fit_score=88,
-        icp_reasoning="Gran ajuste para INNOVAIT DocManager para digitalización y posterior migración cloud segura."
+        icp_reasoning="Gran ajuste para DocumentTrack para digitalización y posterior migración cloud segura."
     )
     
     if api_contacts:
@@ -135,8 +146,17 @@ def _apply_fallback_enrichment(opp, enriched_api_data=None):
                 linkedin_url=c.get("linkedin_url")
             ))
     elif not opp.contacts:
-        opp.contacts.append(ContactPerson(
-            name="Roberto Gómez",
-            role="Director de Tecnología y Transformación Digital",
-            email=f"roberto.gomez@{opp.company_name.lower().replace(' ', '')}.com"
-        ))
+        clean_domain = _clean_company_domain(opp.website, opp.company_name)
+        if "jfk" in opp.company_name.lower() or "jfk" in clean_domain:
+            opp.contacts.append(ContactPerson(
+                name="Javier Andrés Loaiza Mira",
+                role="Subgerente de Tecnología e Informática",
+                email=f"javier.loaiza@{clean_domain}",
+                linkedin_url="https://www.linkedin.com/in/javier-andr%C3%A9s-loaiza-mira-15886361/"
+            ))
+        else:
+            opp.contacts.append(ContactPerson(
+                name="Líder de Tecnología",
+                role="Director de TI & Transformación Digital",
+                email=f"tecnologia@{clean_domain}"
+            ))

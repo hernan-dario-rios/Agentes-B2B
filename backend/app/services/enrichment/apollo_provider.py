@@ -16,6 +16,8 @@ class ApolloProvider(BaseEnricherProvider):
             return None
 
         clean_domain = domain.replace("https://", "").replace("http://", "").strip("/").split("/")[0] if domain else ""
+        if clean_domain.startswith("www."):
+            clean_domain = clean_domain[4:]
         logger.info(f"[ApolloProvider] Consultando organización para domain={clean_domain} o name={company_name}")
 
         technologies = []

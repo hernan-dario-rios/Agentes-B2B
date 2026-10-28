@@ -4,7 +4,7 @@
   "services": [
     {
       "id": "DOC_MANAGER",
-      "name": "Sistema de Gestión Documental Empresarial (INNOVAIT DocManager)",
+      "name": "Sistema de Gestión Documental Empresarial (DocumentTrack)",
       "category": "FLAGSHIP_PRODUCT",
       "summary": "Plataforma contenerizada en Docker (Web Tier, Worker Tier, Data Tier y Storage Tier) para recepción de facturas, validación XML/CUFE y extracción OCR con modelos de IA.",
       "key_features": [

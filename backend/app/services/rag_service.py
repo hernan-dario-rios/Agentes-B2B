@@ -56,7 +56,7 @@ class TechnicalRAGService:
         guidelines = tier_info.get("guidelines", {})
 
         context_str = f"""
-=== ESPECIFICACIÓN TÉCNICA OFICIAL: DOCUMENTTRACK / INNOVAIT DOCMANAGER ===
+=== ESPECIFICACIÓN TÉCNICA OFICIAL: DOCUMENTTRACK ===
 Perfil de Dimensionamiento Calculado: {tier.get('tier_name', 'Tier 2: Intermedio')}
 - Volumen Mensual Soportado: {tier.get('monthly_volume_min', 0):,} a {tier.get('monthly_volume_max', 0):,} documentos
 - Capa App & Worker: {tier.get('app_worker_spec', 'Contenedores Docker FastAPI con Auto-Scaling')}

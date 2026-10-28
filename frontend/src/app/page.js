@@ -52,7 +52,9 @@ export default function SalesCommandCenter() {
   const [activeCatalogModalTab, setActiveCatalogModalTab] = useState("structured"); // "structured" | "json"
 
   const handleCopyOutreach = (gate) => {
-    const textToCopy = `Asunto: ${gate.key_metrics?.subject || gate.headline || "Propuesta de Transformación INNOVAIT"}\n\n${gate.recommendation_summary}\n\nCanal: Correo Electrónico Corporativo\nRemitente: Equipo Comercial INNOVAIT`;
+    const subject = gate.context_details?.subject || gate.key_metrics?.subject || "INNOVAIT | Transformación digital y eficiencia operativa";
+    const body = gate.context_details?.body_markdown || gate.recommendation_summary || "";
+    const textToCopy = `Asunto: ${subject}\n\n${body}`;
     if (navigator?.clipboard) {
       navigator.clipboard.writeText(textToCopy);
       setCopiedId(gate.opportunity_id);
@@ -65,6 +67,24 @@ export default function SalesCommandCenter() {
   const [modifyTarget, setModifyTarget] = useState(null);
   const [feedbackText, setFeedbackText] = useState("");
   const [discountValue, setDiscountValue] = useState("");
+
+  // Modal de Confirmación de Envío en Gate 2 (Outreach desde Outlook)
+  const [confirmOutreachModalOpen, setConfirmOutreachModalOpen] = useState(false);
+  const [outreachConfirmTarget, setOutreachConfirmTarget] = useState(null);
+  const [finalSubject, setFinalSubject] = useState("");
+  const [finalBody, setFinalBody] = useState("");
+  const [finalRecipient, setFinalRecipient] = useState("");
+
+  const handleOpenConfirmOutreach = (gate) => {
+    setOutreachConfirmTarget(gate);
+    const subject = gate.context_details?.subject || gate.key_metrics?.subject || gate.headline || "Propuesta de Transformación INNOVAIT";
+    const body = gate.context_details?.body_markdown || gate.recommendation_summary || "";
+    const contact = gate.context_details?.contacts?.[0]?.email || gate.key_metrics?.contact || "";
+    setFinalSubject(subject);
+    setFinalBody(body);
+    setFinalRecipient(contact);
+    setConfirmOutreachModalOpen(true);
+  };
 
   // Modal Nueva Oportunidad
   const [newOppModalOpen, setNewOppModalOpen] = useState(false);
@@ -279,7 +299,7 @@ export default function SalesCommandCenter() {
         status: "PENDING",
         headline: "Validación de Target: Transportes Interandinos S.A.",
         agent_name: "Scraper & Enricher Agent (Apollo/Hunter)",
-        recommendation_summary: "Ajuste ICP 92/100. Stack legacy detectado (Windows Server + SQL Server desnormalizado). Gran fit para INNOVAIT DocManager.",
+        recommendation_summary: "Ajuste ICP 92/100. Stack legacy detectado (Windows Server + SQL Server desnormalizado). Gran fit para DocumentTrack.",
         key_metrics: { fit_score: 92, stack: ["Windows Server", "SQL Server 2012", "Carpetas SMB"] },
         waiting_since: new Date().toISOString(),
       },
@@ -329,7 +349,7 @@ export default function SalesCommandCenter() {
               justification: "Saneamiento de anomalías, eliminación de duplicidad de registros y creación de pipelines limpios."
             },
             {
-              concept: "Licencia Anual Plataforma DocumentTrack / INNOVAIT DocManager",
+              concept: "Licencia Anual Plataforma DocumentTrack",
               package_tier: "Tier Empresarial ($1,500 USD/mes × 12 meses)",
               fee_display: "$18,000 USD/año",
               catalog_source: "services_catalog.json ➔ DOC_MANAGER -> ENTERPRISE",
@@ -531,7 +551,7 @@ export default function SalesCommandCenter() {
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Producto Insignia</p>
-              <h3 className="text-lg font-black text-slate-900 mt-1">DocManager</h3>
+              <h3 className="text-lg font-black text-slate-900 mt-1">DocumentTrack</h3>
               <p className="text-xs text-slate-500 mt-0.5">Gestión Documental & OCR</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -653,9 +673,30 @@ export default function SalesCommandCenter() {
                             {gate.agent_name}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-700 leading-relaxed font-normal">
-                          {gate.recommendation_summary}
-                        </p>
+                        {gate.gate_type === "GATE_2_OUTREACH" ? (
+                          <div className="mt-2 bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
+                            <div className="bg-slate-100/80 px-4 py-2.5 border-b border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center space-x-2">
+                                <Mail className="w-4 h-4 text-purple-600" />
+                                <span className="font-bold text-slate-800">
+                                  Asunto: {gate.context_details?.subject || gate.key_metrics?.subject || "INNOVAIT | Transformación digital y eficiencia operativa"}
+                                </span>
+                              </div>
+                              {gate.key_metrics?.contact && (
+                                <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                                  Destinatario: {gate.key_metrics.contact}
+                                </span>
+                              )}
+                            </div>
+                            <div className="p-4 text-xs text-slate-800 font-sans leading-relaxed whitespace-pre-line max-h-80 overflow-y-auto">
+                              {gate.context_details?.body_markdown || gate.recommendation_summary}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-line">
+                            {gate.recommendation_summary}
+                          </p>
+                        )}
 
                         {/* Métricas clave detectadas */}
                         {gate.key_metrics && Object.keys(gate.key_metrics).length > 0 && (
@@ -777,7 +818,7 @@ export default function SalesCommandCenter() {
                                     </div>
                                   </div>
 
-                                  {/* Rubro 2: Licencia DocManager */}
+                                  {/* Rubro 2: Licencia DocumentTrack */}
                                   <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                                     <div>
                                       <div className="flex items-center justify-between mb-1">
@@ -787,7 +828,7 @@ export default function SalesCommandCenter() {
                                         <FileText className="w-4 h-4 text-blue-600" />
                                       </div>
                                       <h5 className="text-xs font-bold text-slate-800 mt-1">
-                                        Plataforma INNOVAIT DocManager
+                                        Plataforma DocumentTrack
                                       </h5>
                                       <p className="text-xs font-extrabold text-slate-900 mt-1">
                                         ${gate.key_metrics?.annual_license_usd?.toLocaleString() || "18,000"} USD/año
@@ -856,8 +897,8 @@ export default function SalesCommandCenter() {
                                 {(gate.context_details?.contacts && gate.context_details.contacts.length > 0
                                   ? gate.context_details.contacts
                                   : [
+                                      { name: "Javier Andrés Loaiza Mira", role: "Subgerente de Tecnología e Informática", email: "javier.loaiza@jfk.com.co", linkedin_url: "https://www.linkedin.com/in/javier-andr%C3%A9s-loaiza-mira-15886361/" },
                                       { name: "Colette Rodriguez", role: "Directora de Agencia", email: "colette.rodriguez@jfk.com.co", linkedin_url: "https://www.linkedin.com/in/colette-rodriguez-466a9388" },
-                                      { name: "Luz Adriana Gaviria Osorio", role: "Directora", email: "luz.gaviria@jfk.com.co", linkedin_url: "https://www.linkedin.com/in/luz-adriana-gaviria-osorio-99b50b55" },
                                       { name: "Leidy Garcia", role: "Directora Contabilidad", email: "leidy.garcia@jfk.com.co", linkedin_url: "https://www.linkedin.com/in/leidy-garcia-8348b615a" }
                                     ]
                                 ).map((contact, cIdx) => (
@@ -1007,11 +1048,17 @@ export default function SalesCommandCenter() {
                         </button>
 
                         <button
-                          onClick={() => handleDecision(gate.opportunity_id, "APPROVE")}
+                          onClick={() => {
+                            if (gate.gate_type === "GATE_2_OUTREACH") {
+                              handleOpenConfirmOutreach(gate);
+                            } else {
+                              handleDecision(gate.opportunity_id, "APPROVE");
+                            }
+                          }}
                           className="px-5 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all flex items-center space-x-1.5"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Aprobar (Approve)</span>
+                          <span>{gate.gate_type === "GATE_2_OUTREACH" ? "Confirmar Envío (Approve)" : "Aprobar (Approve)"}</span>
                         </button>
                       </div>
                     </div>
@@ -1083,7 +1130,7 @@ export default function SalesCommandCenter() {
                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-slate-900">DocumentTrack / INNOVAIT DocManager</h3>
+                <h3 className="text-lg font-bold text-slate-900">DocumentTrack</h3>
                 <p className="text-sm text-slate-600 mt-2">
                   {serviceDescriptions.DOC_MANAGER}
                 </p>
@@ -1282,6 +1329,129 @@ export default function SalesCommandCenter() {
         </div>
       )}
 
+      {/* MODAL: CONFIRMAR ENVÍO DE CORREO EN GATE 2 */}
+      {confirmOutreachModalOpen && outreachConfirmTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                  <Mail className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Confirmar Envío de Correo (Gate 2: Primer Contacto)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Empresa: <span className="font-bold text-slate-700">{outreachConfirmTarget.company_name}</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setConfirmOutreachModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4 flex-1 overflow-y-auto pr-1">
+              <div className="bg-purple-50/70 p-3.5 rounded-xl border border-purple-100 text-xs text-purple-950 flex items-start space-x-2">
+                <Info className="w-4 h-4 text-purple-700 mt-0.5 shrink-0" />
+                <p>
+                  Confirma que ya enviaste el correo desde tu cliente de Outlook. Si hiciste algún cambio o ajuste de última hora directamente en tu mensaje, <strong>pégalo a continuación</strong> para que el historial y los siguientes agentes (Discovery y Solución) tengan la versión real y exacta que recibió el cliente.
+                </p>
+              </div>
+
+              {/* Destinatario y Fecha */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Destinatario Principal:
+                  </label>
+                  <input
+                    type="text"
+                    value={finalRecipient}
+                    onChange={(e) => setFinalRecipient(e.target.value)}
+                    placeholder="ej: contacto@empresa.com"
+                    className="w-full text-xs p-2.5 border border-slate-300 rounded-xl bg-slate-50 font-mono text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                    Marca de Tiempo del Envío:
+                  </label>
+                  <div className="text-xs p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-600 flex items-center space-x-1.5 font-medium">
+                    <Clock className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Se registrará la fecha y hora actual automáticamente</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Asunto Final */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Línea de Asunto Enviada:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={finalSubject}
+                  onChange={(e) => setFinalSubject(e.target.value)}
+                  placeholder="Asunto del correo..."
+                  className="w-full text-xs p-2.5 border border-slate-300 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Cuerpo Final */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700 uppercase">
+                    Cuerpo del Correo Enviado (Texto Final Real):
+                  </label>
+                  <span className="text-[11px] text-slate-400">Editable / Puedes pegar tu texto final</span>
+                </div>
+                <textarea
+                  rows={8}
+                  required
+                  value={finalBody}
+                  onChange={(e) => setFinalBody(e.target.value)}
+                  placeholder="Pega aquí el contenido final del correo tal como se envió desde tu Outlook..."
+                  className="w-full text-xs p-3 border border-slate-300 rounded-xl font-mono leading-relaxed text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setConfirmOutreachModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={submitting || !finalSubject.trim() || !finalBody.trim()}
+                onClick={async () => {
+                  setConfirmOutreachModalOpen(false);
+                  await handleDecision(outreachConfirmTarget.opportunity_id, "APPROVE", null, {
+                    final_subject: finalSubject.trim(),
+                    final_body: finalBody.trim(),
+                    sent_at: new Date().toISOString()
+                  });
+                }}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Confirmar Envío y Avanzar a Gate 3 (Discovery)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL: NUEVA OPORTUNIDAD */}
       {newOppModalOpen && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1353,7 +1523,7 @@ export default function SalesCommandCenter() {
             <div className="flex items-center space-x-2 mb-1">
               <Pencil className="w-5 h-5 text-blue-600" />
               <h3 className="text-lg font-bold text-slate-900">
-                {editingServiceId === "DOC_MANAGER" && "Editar Servicio: DocumentTrack / DocManager"}
+                {editingServiceId === "DOC_MANAGER" && "Editar Servicio: DocumentTrack"}
                 {editingServiceId === "DATA_HYGIENE" && "Editar Servicio: Orden y Depuración de BD"}
                 {editingServiceId === "CLOUD_INFRA" && "Editar Servicio: Infraestructuras Cloud"}
                 {editingServiceId === "AI_AUTOMATION" && "Editar Servicio: Automatización con IA & Agentes"}
