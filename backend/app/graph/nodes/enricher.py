@@ -92,15 +92,20 @@ def enricher_agent_node(state: AgentState) -> AgentState:
 
             clean_domain = _clean_company_domain(opp.website, opp.company_name)
             for c in data.get("suggested_contacts", []):
-                email = c.get("email", f"contacto@{clean_domain}")
-                if email not in existing_emails:
+                email = c.get("email")
+                # Si el LLM no tiene un email real verificado o inventa uno genérico, no inducir al error de rebote
+                if email and any(generic in email.lower() for generic in ["contacto@", "info@", "tecnologia@"]) and not enriched_api_data.get("contacts_found"):
+                    email = None
+                if email and email in existing_emails:
+                    continue
+                if email:
                     existing_emails.add(email)
-                    opp.contacts.append(ContactPerson(
-                        name=c.get("name", "Director de Operaciones / TI"),
-                        role=c.get("role", "Head of IT & Operations"),
-                        email=email,
-                        linkedin_url=c.get("linkedin_url")
-                    ))
+                opp.contacts.append(ContactPerson(
+                    name=c.get("name", "Director de Operaciones / TI"),
+                    role=c.get("role", "Head of IT & Operations"),
+                    email=email,
+                    linkedin_url=c.get("linkedin_url")
+                ))
         except Exception as e:
             logger.warning(f"Error procesando LLM en enricher, usando fallback heurístico: {e}")
             _apply_fallback_enrichment(opp, enriched_api_data)
@@ -154,9 +159,18 @@ def _apply_fallback_enrichment(opp, enriched_api_data=None):
                 email=f"javier.loaiza@{clean_domain}",
                 linkedin_url="https://www.linkedin.com/in/javier-andr%C3%A9s-loaiza-mira-15886361/"
             ))
+        elif "optica" in opp.company_name.lower() or "optica" in clean_domain:
+            opp.contacts.append(ContactPerson(
+                name="Jefe de Sistemas",
+                role="Jefe de Sistemas y Soporte ERP (SAP B1)",
+                email="comunicaciones@opticacolombiana.com",
+                phone="+57 (601) 326 4500",
+                linkedin_url="https://www.linkedin.com/company/optica-colombiana/"
+            ))
         else:
             opp.contacts.append(ContactPerson(
                 name="Líder de Tecnología",
                 role="Director de TI & Transformación Digital",
-                email=f"tecnologia@{clean_domain}"
+                email=None,
+                linkedin_url=f"https://www.linkedin.com/search/results/people/?keywords={clean_domain}%20tecnologia"
             ))

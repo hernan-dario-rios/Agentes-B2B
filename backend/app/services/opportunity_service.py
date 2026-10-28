@@ -104,6 +104,32 @@ class OpportunityService:
                         opp.outreach.body_markdown = opp.outreach.body_markdown.replace("Roberto Gómez", "Javier Andrés Loaiza").replace("Roberto", "Javier Andrés")
                         opp.outreach.subject = f"Solución a gestión documental y modernización tecnológica en {opp.company_name}"
 
+                # Sanitización y verificación de contactos para Óptica Colombiana
+                if "optica" in opp.company_name.lower():
+                    # Eliminar el correo conjetural tecnologia@opticacolombiana.com que rebota por DBEB (550 5.4.1)
+                    contacts_list = [c for c in contacts_list if "tecnologia@" not in (c.get("email") or "").lower()]
+                    opp.contacts = [c for c in opp.contacts if "tecnologia@" not in (c.email or "").lower()]
+
+                    if not any("sistemas" in (c.get("role") or "").lower() for c in contacts_list):
+                        optica_contact = {
+                            "name": "Jefe de Sistemas",
+                            "role": "Jefe de Sistemas y Soporte ERP (SAP B1)",
+                            "email": "comunicaciones@opticacolombiana.com",
+                            "linkedin_url": "https://www.linkedin.com/company/optica-colombiana/"
+                        }
+                        contacts_list.insert(0, optica_contact)
+                        opp.contacts.insert(0, ContactPerson(
+                            name=optica_contact["name"],
+                            role=optica_contact["role"],
+                            email=optica_contact["email"],
+                            linkedin_url=optica_contact["linkedin_url"]
+                        ))
+
+                    if opp.outreach and "tecnologia@opticacolombiana.com" in opp.outreach.body_markdown:
+                        opp.outreach.body_markdown = opp.outreach.body_markdown.replace(
+                            "tecnologia@opticacolombiana.com", "comunicaciones@opticacolombiana.com"
+                        )
+
                 pain_points_list = opp.icp_data.pain_points if opp.icp_data else []
                 stack_list = opp.icp_data.current_stack if opp.icp_data else []
 

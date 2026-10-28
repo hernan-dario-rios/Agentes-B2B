@@ -1035,7 +1035,7 @@ export default function SalesCommandCenter() {
                                       </div>
                                       <p className="text-[11px] text-slate-500 font-medium">{contact.role || "Cargo no especificado"}</p>
                                     </div>
-                                    {contact.email && (
+                                    {contact.email ? (
                                       <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
                                         <code className="text-indigo-700 font-mono text-[10px] truncate">{contact.email}</code>
                                         <button
@@ -1051,6 +1051,10 @@ export default function SalesCommandCenter() {
                                         >
                                           <Copy className="w-3 h-3" />
                                         </button>
+                                      </div>
+                                    ) : (
+                                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-amber-700 bg-amber-50/60 px-2 py-1 rounded">
+                                        <span>Sin correo nominal directo (Validar vía PBX o LinkedIn)</span>
                                       </div>
                                     )}
                                   </div>
