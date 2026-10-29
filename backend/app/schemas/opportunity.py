@@ -45,9 +45,11 @@ class ICPData(BaseModel):
 
 
 class OutreachSequence(BaseModel):
-    channel: str = "EMAIL"  # EMAIL, LINKEDIN, WHATSAPP
-    subject: str
-    body_markdown: str
+    channel: str = "EMAIL"  # EMAIL, LINKEDIN, WHATSAPP, CALL
+    subject: str = ""
+    body_markdown: str = ""
+    whatsapp_message: Optional[str] = None
+    call_script: Optional[str] = None
     followup_variants: List[str] = Field(default_factory=list)
     sent_at: Optional[datetime] = None
     prospect_response: Optional[str] = None

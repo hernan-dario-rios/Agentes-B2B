@@ -194,17 +194,29 @@ class OpportunityService:
                         target_role = contacts_list[0]["role"] if contacts_list else "Subgerente de Tecnología e Informática"
                         _apply_fallback_outreach(opp, target_name, target_role)
 
+                    # Asegurar presencia de whatsapp_message y call_script (Kit multicanal PyME)
+                    if opp.outreach and (not getattr(opp.outreach, "whatsapp_message", None) or not getattr(opp.outreach, "call_script", None)):
+                        target_name = contacts_list[0]["name"] if contacts_list else "Gerente General"
+                        target_role = contacts_list[0]["role"] if contacts_list else "Representante Legal"
+                        from app.graph.nodes.sdr import _fill_sme_fallbacks_if_missing
+                        _fill_sme_fallbacks_if_missing(opp, target_name, target_role)
+
                     recom = opp.outreach.body_markdown if (opp.outreach and opp.outreach.body_markdown) else "Borrador de comunicación corporativa listo."
+                    channel_label = opp.outreach.channel if (opp.outreach and opp.outreach.channel) else ("WHATSAPP / LLAMADA" if not opp.website else "EMAIL")
                     metrics = {
-                        "channel": "EMAIL",
+                        "channel": channel_label,
                         "subject": opp.outreach.subject if opp.outreach else "Sin asunto",
                         "contact": f"{contacts_list[0]['name']} ({contacts_list[0]['role']})" if contacts_list else "Contacto Principal"
                     }
                     context_details = {
                         "subject": opp.outreach.subject if opp.outreach else "",
                         "body_markdown": opp.outreach.body_markdown if opp.outreach else "",
+                        "whatsapp_message": getattr(opp.outreach, "whatsapp_message", None),
+                        "call_script": getattr(opp.outreach, "call_script", None),
+                        "channel": channel_label,
                         "contacts": contacts_list,
-                        "pain_points": pain_points_list
+                        "pain_points": pain_points_list,
+                        "is_sme": not bool(opp.website)
                     }
                 elif opp.current_gate == GateType.GATE_3_DISCOVERY:
                     headline = f"Validación de Alcance Técnico (BANT): {opp.company_name}"
@@ -409,12 +421,14 @@ class OpportunityService:
             opp.current_gate = GateType.GATE_2_OUTREACH
 
         elif current_gate == GateType.GATE_2_OUTREACH:
-            # Gate 2 Aprobado (Confirmar Envío Outlook) -> Discovery Agent -> Pausar en Gate 3
+            # Gate 2 Aprobado (Confirmar Envío Outlook / WhatsApp / Teléfono) -> Discovery Agent -> Pausar en Gate 3
             if modifications and isinstance(modifications, dict):
                 if modifications.get("final_subject") and opp.outreach:
                     opp.outreach.subject = str(modifications["final_subject"]).strip()
                 if modifications.get("final_body") and opp.outreach:
                     opp.outreach.body_markdown = str(modifications["final_body"]).strip()
+                if modifications.get("channel") and opp.outreach:
+                    opp.outreach.channel = str(modifications["channel"]).strip()
             if opp.outreach:
                 opp.outreach.sent_at = datetime.now(timezone.utc)
             opp.stage = PipelineStage.WAITING_HUMAN_APPROVAL

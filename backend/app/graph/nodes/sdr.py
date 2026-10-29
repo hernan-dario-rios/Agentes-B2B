@@ -26,7 +26,7 @@ def sdr_agent_node(state: AgentState) -> AgentState:
     llm = get_chat_model()
     if llm:
         prompt = f"""
-        Actúa como un Director Comercial y Consultor Senior Enterprise de INNOVAIT especializado en ventas consultivas B2B de tecnología.
+        Actúa como un Director Comercial y Consultor Senior de INNOVAIT especializado en prospección y ventas B2B de tecnología en Colombia.
         
         Nuestras soluciones empresariales son:
         - DocumentTrack (Plataforma Insignia de Gestión Documental Inteligente, motor OCR con IA, validación XML/CUFE y radicación electrónica)
@@ -35,35 +35,37 @@ def sdr_agent_node(state: AgentState) -> AgentState:
         - Automatización de Procesos con IA
 
         Prospecto:
-        - Empresa: {opp.company_name}
+        - Empresa: {opp.company_name} (Sitio Web: {opp.website or 'No posee página web - Empresa PyME / Comercio Tradicional'})
         - Contacto: {contact_name} ({contact_role})
         - Dolores detectados: {', '.join(opp.icp_data.pain_points)}
         - Stack técnico detectado: {', '.join(opp.icp_data.current_stack)}
         {feedback_note}
 
-        Genera una comunicación ejecutiva formal y de alto nivel corporativo (Cold Outreach B2B), estructurada de la siguiente manera:
-        1. Saludo formal y personalizado al contacto con su cargo corporativo.
-        2. Reconocimiento respetuoso del liderazgo y expansión de la empresa en su sector.
-        3. Identificación de los 3 dolores críticos que enfrentan en su operación (custodia de archivo físico/pagarés, calidad de datos y modernización tecnológica).
-        4. Presentación ejecutiva de cómo INNOVAIT resuelve esos desafíos (destacando DocumentTrack, saneamiento de datos y modernización cloud).
-        5. Llamado a la acción (CTA) cordial y consultivo proponiendo una breve sesión virtual de 15 minutos con opciones de agenda.
-        6. Despedida formal con firma del Equipo de Soluciones Corporativas de INNOVAIT.
+        Genera un Kit Completo de Prospección Multicanal (Cold Outreach B2B adaptado a empresas grandes y PyMEs):
+        1. subject (línea de asunto ejecutiva, formal y atractiva de 6 a 10 palabras)
+        2. body_markdown (cuerpo completo del correo formal con espaciado profesional, viñetas limpias y propuesta de valor)
+        3. whatsapp_message (mensaje persuasivo, directo y conciso para WhatsApp Business, adaptado a gerentes y dueños de empresas en Colombia)
+        4. call_script (guion telefónico estructurado en 3 pasos: Paso 1 Filtro de recepción, Paso 2 Pitch al Gerente/Dueño de 30 segundos, Paso 3 Cierre para agendar demo de 15 minutos de DocumentTrack, y manejo de objeciones típicas)
+        5. followup_variants (lista de 2 strings con opciones de seguimiento profesional a los 5 y 10 días)
 
-        Responde ÚNICAMENTE en formato JSON con:
-        - subject (línea de asunto ejecutiva, formal y atractiva de 6 a 10 palabras)
-        - body_markdown (cuerpo completo del correo con espaciado profesional, viñetas limpias y redacción impecable)
-        - followup_variants (lista de 2 strings con opciones de seguimiento profesional a los 5 y 10 días)
+        Responde ÚNICAMENTE en formato JSON estricto con las claves: subject, body_markdown, whatsapp_message, call_script, followup_variants.
         """
         try:
             response = llm.invoke(prompt)
             content = response.content.replace("```json", "").replace("```", "").strip()
             data = json.loads(content)
+            preferred_channel = "WHATSAPP / LLAMADA" if (not opp.website or not contact or not contact.email) else "EMAIL"
             opp.outreach = OutreachSequence(
-                channel="EMAIL",
-                subject=data.get("subject", f"INNOVAIT | Eficiencia operativa y modernización tecnológica en {opp.company_name}"),
+                channel=preferred_channel,
+                subject=data.get("subject", f"INNOVAIT | Eficiencia operativa y modernización documental en {opp.company_name}"),
                 body_markdown=data.get("body_markdown", ""),
+                whatsapp_message=data.get("whatsapp_message"),
+                call_script=data.get("call_script"),
                 followup_variants=data.get("followup_variants", [])
             )
+            # Si el LLM omitió whatsapp_message o call_script, rellenarlos con fallback
+            if not opp.outreach.whatsapp_message or not opp.outreach.call_script:
+                _fill_sme_fallbacks_if_missing(opp, contact_name, contact_role)
         except Exception as e:
             logger.warning(f"Error procesando LLM en SDR, usando fallback heurístico: {e}")
             _apply_fallback_outreach(opp, contact_name, contact_role)
@@ -78,6 +80,51 @@ def sdr_agent_node(state: AgentState) -> AgentState:
         f"SDR Agent generó propuesta de correo para {contact_name} en {opp.company_name}. Listo para revisión humana."
     )
     return state
+
+
+def _build_sme_whatsapp_message(opp, contact_name: str) -> str:
+    return (
+        f"Hola {contact_name}, cordial saludo. Le saluda el equipo de Soluciones Corporativas de INNOVAIT.\n\n"
+        f"Le escribimos porque sabemos que en empresas con el dinamismo y operación de *{opp.company_name}*, "
+        f"uno de los mayores dolores de cabeza diarios es la acumulación de remisiones, facturas y carpetas de archivo físico, "
+        f"además del desorden de datos de clientes entre sedes.\n\n"
+        f"Con nuestra plataforma *DocumentTrack*, ayudamos a gerentes y directores de operaciones a digitalizar de forma automática con IA "
+        f"todos sus expedientes con búsqueda instantánea en segundos, liberando espacio en bodegas y asegurando sus respaldos "
+        f"en la nube sin costos desproporcionados.\n\n"
+        f"¿Tendría 5 a 10 minutos esta semana para una breve demostración por computador? Quedo muy atento a su respuesta."
+    )
+
+
+def _build_sme_call_script(opp, contact_name: str) -> str:
+    return (
+        f"📞 GUION DE LLAMADA TELEFÓNICA (PROSPECCIÓN PYME / EMPRESAS SIN SITIO WEB)\n\n"
+        f"[PASO 1: FILTRO DE RECEPCIÓN / ASISTENTE]\n"
+        f"\"Buenos días / tardes, ¿me comunica por favor con la gerencia o despacho de don(ña) {contact_name}? "
+        f"De parte de INNOVAIT sobre un asunto de modernización documental y control de sedes de {opp.company_name}.\"\n"
+        f"• Si preguntan el motivo: \"Estamos coordinando una presentación de digitalización y respaldo cloud para la operación.\"\n\n"
+        f"[PASO 2: CONEXIÓN CON EL GERENTE / TOMADOR DE DECISIÓN]\n"
+        f"\"Don(ña) {contact_name}, qué tal, un saludo cordial. Le habla el equipo de Soluciones de INNOVAIT.\n"
+        f"Lo llamo muy puntualmente porque apoyamos a empresas como {opp.company_name} a resolver el problema de acumulación "
+        f"de carpetas, facturas físicas y remisiones en bodegas mediante nuestra plataforma DocumentTrack.\n"
+        f"Además, les ayudamos a que su información contable y de clientes quede blindada y respaldada en la nube, y no en "
+        f"computadores locales vulnerables a daños o virus.\"\n\n"
+        f"[PASO 3: PREGUNTA DE CALIFICACIÓN Y CIERRE (15 MINUTOS)]\n"
+        f"\"¿Ustedes actualmente tienen dolor de cabeza con el archivo físico o con documentos que se embolatan entre puntos de atención?\n"
+        f"Me gustaría mostrarle en 10 o 15 minutos por computador cómo opera DocumentTrack y cómo les ahorra tiempo y costos de bodega. "
+        f"¿Le queda mejor el martes en la mañana o el miércoles en la tarde?\"\n\n"
+        f"[MANEJO DE OBJECIONES TÍPICAS]:\n"
+        f"• 'Ya tenemos un software contable (Siigo / World Office / etc.)': -> 'Excelente, DocumentTrack no reemplaza su contabilidad, se integra para custodiar y extraer con OCR inteligente todos los papeles y facturas de soporte.'\n"
+        f"• 'Envíeme la información por WhatsApp o correo': -> 'Con todo gusto don(ña) {contact_name}, ¿me confirma a qué número o correo se lo despacho hoy mismo? Y le pego una timbradita corta mañana para verificar que lo haya recibido bien.'"
+    )
+
+
+def _fill_sme_fallbacks_if_missing(opp, contact_name: str, contact_role: str):
+    if not opp.outreach:
+        return
+    if not opp.outreach.whatsapp_message:
+        opp.outreach.whatsapp_message = _build_sme_whatsapp_message(opp, contact_name)
+    if not opp.outreach.call_script:
+        opp.outreach.call_script = _build_sme_call_script(opp, contact_name)
 
 
 def _apply_fallback_outreach(opp, contact_name, contact_role):
@@ -114,12 +161,18 @@ Cordialmente,
 INNOVAIT Tech Solutions
 contacto@innovait.co | www.innovait.co"""
 
+    whatsapp_msg = _build_sme_whatsapp_message(opp, contact_name)
+    call_script = _build_sme_call_script(opp, contact_name)
+    preferred_channel = "WHATSAPP / LLAMADA" if (not opp.website or (opp.contacts and not opp.contacts[0].email)) else "EMAIL"
+
     opp.outreach = OutreachSequence(
-        channel="EMAIL",
+        channel=preferred_channel,
         subject=subject,
         body_markdown=body,
+        whatsapp_message=whatsapp_msg,
+        call_script=call_script,
         followup_variants=[
-            "Seguimiento ejecutivo compartiendo caso de éxito en reducción de tiempos de búsqueda documental y costos de bodegaje",
-            "Consulta breve sobre si la prioridad actual del área de TI se enfoca en digitalización o en depuración de datos"
+            "Seguimiento por WhatsApp compartiendo caso de éxito en reducción de tiempos de búsqueda documental y costos de bodegaje",
+            "Llamada telefónica corta de seguimiento para validar si recibió el mensaje y coordinar demo de 10 minutos"
         ]
     )

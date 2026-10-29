@@ -35,7 +35,9 @@ import {
   Target,
   FileCode,
   Eye,
-  Info
+  Info,
+  Phone,
+  MessageSquare
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -74,15 +76,45 @@ export default function SalesCommandCenter() {
     setCollapsedCards({});
   };
 
+  // Control de pestañas multicanal para Gate 2 (Outreach)
+  const [activeOutreachTabs, setActiveOutreachTabs] = useState({});
+  const [outreachChannel, setOutreachChannel] = useState("whatsapp");
+
+  const getOutreachTab = (gate) => {
+    if (activeOutreachTabs[gate.opportunity_id]) {
+      return activeOutreachTabs[gate.opportunity_id];
+    }
+    // Si es PyME sin web o tiene mensaje de WhatsApp generado, sugerir WhatsApp por defecto
+    if (gate.context_details?.whatsapp_message || gate.context_details?.is_sme) {
+      return "whatsapp";
+    }
+    return "email";
+  };
+
+  const handleCopyText = (text, oppId) => {
+    if (navigator?.clipboard && text) {
+      navigator.clipboard.writeText(text);
+      setCopiedId(oppId);
+      setTimeout(() => setCopiedId(null), 2500);
+    }
+  };
+
   const handleCopyOutreach = (gate) => {
+    const currentTab = getOutreachTab(gate);
+    if (currentTab === "whatsapp") {
+      const waText = gate.context_details?.whatsapp_message || gate.recommendation_summary || "";
+      handleCopyText(waText, gate.opportunity_id);
+      return;
+    }
+    if (currentTab === "call") {
+      const callText = gate.context_details?.call_script || gate.recommendation_summary || "";
+      handleCopyText(callText, gate.opportunity_id);
+      return;
+    }
     const subject = gate.context_details?.subject || gate.key_metrics?.subject || "INNOVAIT | Transformación digital y eficiencia operativa";
     const body = gate.context_details?.body_markdown || gate.recommendation_summary || "";
     const textToCopy = `Asunto: ${subject}\n\n${body}`;
-    if (navigator?.clipboard) {
-      navigator.clipboard.writeText(textToCopy);
-      setCopiedId(gate.opportunity_id);
-      setTimeout(() => setCopiedId(null), 2500);
-    }
+    handleCopyText(textToCopy, gate.opportunity_id);
   };
 
   // Modal de Decisión Humana (Modify / Feedback)
@@ -91,7 +123,7 @@ export default function SalesCommandCenter() {
   const [feedbackText, setFeedbackText] = useState("");
   const [discountValue, setDiscountValue] = useState("");
 
-  // Modal de Confirmación de Envío en Gate 2 (Outreach desde Outlook)
+  // Modal de Confirmación de Envío en Gate 2 (Outreach desde Outlook o WhatsApp)
   const [confirmOutreachModalOpen, setConfirmOutreachModalOpen] = useState(false);
   const [outreachConfirmTarget, setOutreachConfirmTarget] = useState(null);
   const [finalSubject, setFinalSubject] = useState("");
@@ -100,13 +132,44 @@ export default function SalesCommandCenter() {
 
   const handleOpenConfirmOutreach = (gate) => {
     setOutreachConfirmTarget(gate);
-    const subject = gate.context_details?.subject || gate.key_metrics?.subject || gate.headline || "Propuesta de Transformación INNOVAIT";
-    const body = gate.context_details?.body_markdown || gate.recommendation_summary || "";
-    const contact = gate.context_details?.contacts?.[0]?.email || gate.key_metrics?.contact || "";
-    setFinalSubject(subject);
-    setFinalBody(body);
-    setFinalRecipient(contact);
+    const isSme = gate.context_details?.is_sme;
+    const initialChannel = isSme ? "whatsapp" : "email";
+    setOutreachChannel(initialChannel);
+    if (initialChannel === "whatsapp") {
+      setFinalSubject(`WhatsApp Comercial - ${gate.company_name}`);
+      setFinalBody(gate.context_details?.whatsapp_message || gate.recommendation_summary || "");
+      const phone = gate.context_details?.contacts?.[0]?.phone || "";
+      setFinalRecipient(phone || "Móvil / WhatsApp");
+    } else {
+      const subject = gate.context_details?.subject || gate.key_metrics?.subject || gate.headline || "Propuesta de Transformación INNOVAIT";
+      const body = gate.context_details?.body_markdown || gate.recommendation_summary || "";
+      const contact = gate.context_details?.contacts?.[0]?.email || gate.key_metrics?.contact || "";
+      setFinalSubject(subject);
+      setFinalBody(body);
+      setFinalRecipient(contact);
+    }
     setConfirmOutreachModalOpen(true);
+  };
+
+  const handleChannelSwitchInModal = (ch) => {
+    setOutreachChannel(ch);
+    if (!outreachConfirmTarget) return;
+    if (ch === "whatsapp") {
+      setFinalSubject(`WhatsApp Comercial - ${outreachConfirmTarget.company_name}`);
+      setFinalBody(outreachConfirmTarget.context_details?.whatsapp_message || outreachConfirmTarget.recommendation_summary || "");
+      const phone = outreachConfirmTarget.context_details?.contacts?.[0]?.phone || "";
+      setFinalRecipient(phone || "Móvil / WhatsApp");
+    } else if (ch === "phone") {
+      setFinalSubject(`Llamada Telefónica - ${outreachConfirmTarget.company_name}`);
+      setFinalBody(`Llamada telefónica con ${outreachConfirmTarget.context_details?.contacts?.[0]?.name || "contacto principal"}. Se validó interés en optimización de archivo físico.`);
+      const phone = outreachConfirmTarget.context_details?.contacts?.[0]?.phone || "";
+      setFinalRecipient(phone || "PBX / Teléfono");
+    } else {
+      setFinalSubject(outreachConfirmTarget.context_details?.subject || outreachConfirmTarget.key_metrics?.subject || "INNOVAIT | Transformación digital y eficiencia");
+      setFinalBody(outreachConfirmTarget.context_details?.body_markdown || outreachConfirmTarget.recommendation_summary || "");
+      const email = outreachConfirmTarget.context_details?.contacts?.[0]?.email || outreachConfirmTarget.key_metrics?.contact || "";
+      setFinalRecipient(email || "correo@empresa.com");
+    }
   };
 
   // Modal Nueva Oportunidad
@@ -793,22 +856,134 @@ export default function SalesCommandCenter() {
                         </div>
                         {gate.gate_type === "GATE_2_OUTREACH" ? (
                           <div className="mt-2 bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
-                            <div className="bg-slate-100/80 px-4 py-2.5 border-b border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center space-x-2">
-                                <Mail className="w-4 h-4 text-purple-600" />
-                                <span className="font-bold text-slate-800">
-                                  Asunto: {gate.context_details?.subject || gate.key_metrics?.subject || "INNOVAIT | Transformación digital y eficiencia operativa"}
-                                </span>
+                            {/* Selector de Canal / Formato de Outreach */}
+                            <div className="bg-slate-100/90 px-3.5 py-2.5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveOutreachTabs((prev) => ({ ...prev, [gate.opportunity_id]: "whatsapp" }))}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                                    getOutreachTab(gate) === "whatsapp"
+                                      ? "bg-emerald-600 text-white shadow-xs ring-1 ring-emerald-700"
+                                      : "bg-white text-slate-700 hover:bg-slate-200/70 border border-slate-200"
+                                  }`}
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span>🟢 WhatsApp Ejecutivo</span>
+                                  {gate.context_details?.is_sme && (
+                                    <span className="text-[10px] bg-emerald-700 text-white px-1.5 py-0.2 rounded-full font-extrabold">PyME</span>
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveOutreachTabs((prev) => ({ ...prev, [gate.opportunity_id]: "call" }))}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                                    getOutreachTab(gate) === "call"
+                                      ? "bg-blue-600 text-white shadow-xs ring-1 ring-blue-700"
+                                      : "bg-white text-slate-700 hover:bg-slate-200/70 border border-slate-200"
+                                  }`}
+                                >
+                                  <Phone className="w-3.5 h-3.5" />
+                                  <span>📞 Guion Telefónico (3 Pasos)</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveOutreachTabs((prev) => ({ ...prev, [gate.opportunity_id]: "email" }))}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                                    getOutreachTab(gate) === "email"
+                                      ? "bg-purple-600 text-white shadow-xs ring-1 ring-purple-700"
+                                      : "bg-white text-slate-700 hover:bg-slate-200/70 border border-slate-200"
+                                  }`}
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                  <span>✉️ Correo Corporativo</span>
+                                </button>
                               </div>
+
                               {gate.key_metrics?.contact && (
-                                <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
-                                  Destinatario: {gate.key_metrics.contact}
+                                <span className="text-[11px] font-semibold text-slate-700 bg-white px-2.5 py-1 rounded-md border border-slate-200 shrink-0">
+                                  Contacto: <strong className="text-slate-900">{gate.key_metrics.contact}</strong>
+                                  {gate.context_details?.contacts?.[0]?.phone && (
+                                    <span className="ml-1.5 text-emerald-700 font-bold">
+                                      ({gate.context_details.contacts[0].phone})
+                                    </span>
+                                  )}
                                 </span>
                               )}
                             </div>
-                            <div className="p-4 text-xs text-slate-800 font-sans leading-relaxed whitespace-pre-line max-h-80 overflow-y-auto">
-                              {gate.context_details?.body_markdown || gate.recommendation_summary}
-                            </div>
+
+                            {/* PESTAÑA: WHATSAPP */}
+                            {getOutreachTab(gate) === "whatsapp" && (
+                              <div className="p-4 bg-emerald-50/20">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center space-x-1.5 text-xs font-bold text-emerald-900">
+                                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Mensaje Directo para WhatsApp Business / Celular del Tomador de Decisión</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyText(gate.context_details?.whatsapp_message || gate.recommendation_summary, gate.opportunity_id)}
+                                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-100/70 hover:bg-emerald-100 px-2.5 py-1 rounded-md border border-emerald-200 transition-colors flex items-center space-x-1 cursor-pointer"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    <span>Copiar Mensaje WhatsApp</span>
+                                  </button>
+                                </div>
+                                <div className="bg-white rounded-lg p-4 border border-emerald-100 text-xs text-slate-800 leading-relaxed font-sans whitespace-pre-line shadow-2xs">
+                                  {gate.context_details?.whatsapp_message || "Mensaje de WhatsApp para tomador de decisión listo."}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* PESTAÑA: GUION TELEFÓNICO */}
+                            {getOutreachTab(gate) === "call" && (
+                              <div className="p-4 bg-blue-50/20">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center space-x-1.5 text-xs font-bold text-blue-900">
+                                    <Phone className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Estructura de Llamada: Paso 1 (Filtro Recepción) ➔ Paso 2 (Pitch Dueño) ➔ Paso 3 (Cierre Demo 15 min)</span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyText(gate.context_details?.call_script || gate.recommendation_summary, gate.opportunity_id)}
+                                    className="text-xs font-bold text-blue-700 hover:text-blue-800 bg-blue-100/70 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200 transition-colors flex items-center space-x-1 cursor-pointer"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    <span>Copiar Guion Completo</span>
+                                  </button>
+                                </div>
+                                <div className="bg-white rounded-lg p-4 border border-blue-100 text-xs text-slate-800 leading-relaxed font-sans whitespace-pre-line max-h-96 overflow-y-auto shadow-2xs">
+                                  {gate.context_details?.call_script || "Guion de llamada telefónica listo."}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* PESTAÑA: CORREO CORPORATIVO */}
+                            {getOutreachTab(gate) === "email" && (
+                              <div>
+                                <div className="bg-purple-50/50 px-4 py-2.5 border-b border-purple-100 text-xs flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex items-center space-x-2">
+                                    <Mail className="w-4 h-4 text-purple-600" />
+                                    <span className="font-bold text-slate-800">
+                                      Asunto: {gate.context_details?.subject || gate.key_metrics?.subject || "INNOVAIT | Transformación digital y eficiencia operativa"}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyText(`Asunto: ${gate.context_details?.subject || gate.key_metrics?.subject}\n\n${gate.context_details?.body_markdown || gate.recommendation_summary}`, gate.opportunity_id)}
+                                    className="text-xs font-bold text-purple-700 hover:text-purple-800 bg-purple-100/70 hover:bg-purple-100 px-2.5 py-1 rounded-md border border-purple-200 transition-colors flex items-center space-x-1 cursor-pointer"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                    <span>Copiar Correo</span>
+                                  </button>
+                                </div>
+                                <div className="p-4 text-xs text-slate-800 font-sans leading-relaxed whitespace-pre-line max-h-80 overflow-y-auto">
+                                  {gate.context_details?.body_markdown || gate.recommendation_summary}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <p className="text-sm text-slate-700 leading-relaxed font-normal whitespace-pre-line">
@@ -1135,7 +1310,7 @@ export default function SalesCommandCenter() {
                         {gate.gate_type === "GATE_2_OUTREACH" && (
                           <button
                             onClick={() => handleCopyOutreach(gate)}
-                            className="px-3.5 py-2 rounded-xl text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all flex items-center space-x-1.5 shadow-sm"
+                            className="px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer"
                           >
                             {copiedId === gate.opportunity_id ? (
                               <>
@@ -1145,7 +1320,13 @@ export default function SalesCommandCenter() {
                             ) : (
                               <>
                                 <Copy className="w-3.5 h-3.5" />
-                                <span>Copiar Correo Listo</span>
+                                <span>
+                                  {getOutreachTab(gate) === "whatsapp"
+                                    ? "Copiar WhatsApp"
+                                    : getOutreachTab(gate) === "call"
+                                    ? "Copiar Guion Telefónico"
+                                    : "Copiar Correo Listo"}
+                                </span>
                               </>
                             )}
                           </button>
@@ -1454,18 +1635,34 @@ export default function SalesCommandCenter() {
         </div>
       )}
 
-      {/* MODAL: CONFIRMAR ENVÍO DE CORREO EN GATE 2 */}
+      {/* MODAL: CONFIRMAR ENVÍO / CONTACTO EN GATE 2 */}
       {confirmOutreachModalOpen && outreachConfirmTarget && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
               <div className="flex items-center space-x-2.5">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
-                  <Mail className="w-5 h-5" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  outreachChannel === "whatsapp"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : outreachChannel === "phone"
+                    ? "bg-blue-50 text-blue-700"
+                    : "bg-purple-50 text-purple-700"
+                }`}>
+                  {outreachChannel === "whatsapp" ? (
+                    <MessageSquare className="w-5 h-5" />
+                  ) : outreachChannel === "phone" ? (
+                    <Phone className="w-5 h-5" />
+                  ) : (
+                    <Mail className="w-5 h-5" />
+                  )}
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    Confirmar Envío de Correo (Gate 2: Primer Contacto)
+                    {outreachChannel === "whatsapp"
+                      ? "Confirmar Envío por WhatsApp (Gate 2: Primer Contacto)"
+                      : outreachChannel === "phone"
+                      ? "Registrar Llamada Telefónica (Gate 2: Primer Contacto)"
+                      : "Confirmar Envío de Correo (Gate 2: Primer Contacto)"}
                   </h3>
                   <p className="text-xs text-slate-500">
                     Empresa: <span className="font-bold text-slate-700">{outreachConfirmTarget.company_name}</span>
@@ -1482,10 +1679,73 @@ export default function SalesCommandCenter() {
             </div>
 
             <div className="mt-4 space-y-4 flex-1 overflow-y-auto pr-1">
-              <div className="bg-purple-50/70 p-3.5 rounded-xl border border-purple-100 text-xs text-purple-950 flex items-start space-x-2">
-                <Info className="w-4 h-4 text-purple-700 mt-0.5 shrink-0" />
+              {/* Selector de Canal en el Modal */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                  Canal Utilizado para el Contacto:
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleChannelSwitchInModal("whatsapp")}
+                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                      outreachChannel === "whatsapp"
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-200"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>WhatsApp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleChannelSwitchInModal("phone")}
+                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                      outreachChannel === "phone"
+                        ? "border-blue-500 bg-blue-50 text-blue-800 ring-2 ring-blue-200"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Phone className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Llamada PBX / Móvil</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleChannelSwitchInModal("email")}
+                    className={`p-2.5 rounded-xl border text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                      outreachChannel === "email"
+                        ? "border-purple-500 bg-purple-50 text-purple-800 ring-2 ring-purple-200"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Mail className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Correo Outlook</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-xl border text-xs flex items-start space-x-2 ${
+                outreachChannel === "whatsapp"
+                  ? "bg-emerald-50/70 border-emerald-100 text-emerald-950"
+                  : outreachChannel === "phone"
+                  ? "bg-blue-50/70 border-blue-100 text-blue-950"
+                  : "bg-purple-50/70 border-purple-100 text-purple-950"
+              }`}>
+                <Info className={`w-4 h-4 mt-0.5 shrink-0 ${
+                  outreachChannel === "whatsapp"
+                    ? "text-emerald-700"
+                    : outreachChannel === "phone"
+                    ? "text-blue-700"
+                    : "text-purple-700"
+                }`} />
                 <p>
-                  Confirma que ya enviaste el correo desde tu cliente de Outlook. Si hiciste algún cambio o ajuste de última hora directamente en tu mensaje, <strong>pégalo a continuación</strong> para que el historial y los siguientes agentes (Discovery y Solución) tengan la versión real y exacta que recibió el cliente.
+                  {outreachChannel === "whatsapp"
+                    ? "Confirma el envío del mensaje directo vía WhatsApp. Si realizaste adaptaciones, puedes ajustarlas abajo para que los agentes posteriores conozcan la conversación exacta."
+                    : outreachChannel === "phone"
+                    ? "Registra los puntos clave conversados en la llamada telefónica con el tomador de decisión o recepción para alimentar la etapa de Discovery."
+                    : "Confirma el envío de correo desde tu cliente de Outlook. Los siguientes agentes (Discovery y Solución) usarán esta información para preparar la propuesta."}
                 </p>
               </div>
 
@@ -1493,19 +1753,23 @@ export default function SalesCommandCenter() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Destinatario Principal:
+                    {outreachChannel === "whatsapp"
+                      ? "Celular / WhatsApp Contactado:"
+                      : outreachChannel === "phone"
+                      ? "Número Telefónico / PBX:"
+                      : "Destinatario Principal (Email):"}
                   </label>
                   <input
                     type="text"
                     value={finalRecipient}
                     onChange={(e) => setFinalRecipient(e.target.value)}
-                    placeholder="ej: contacto@empresa.com"
+                    placeholder={outreachChannel === "email" ? "contacto@empresa.com" : "+57 300 123 4567"}
                     className="w-full text-xs p-2.5 border border-slate-300 rounded-xl bg-slate-50 font-mono text-slate-800"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Marca de Tiempo del Envío:
+                    Marca de Tiempo del Contacto:
                   </label>
                   <div className="text-xs p-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-600 flex items-center space-x-1.5 font-medium">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
@@ -1514,35 +1778,39 @@ export default function SalesCommandCenter() {
                 </div>
               </div>
 
-              {/* Asunto Final */}
+              {/* Asunto o Título del Contacto */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                  Línea de Asunto Enviada:
+                  {outreachChannel === "email" ? "Línea de Asunto Enviada:" : "Referencia / Título de la Gestión:"}
                 </label>
                 <input
                   type="text"
                   required
                   value={finalSubject}
                   onChange={(e) => setFinalSubject(e.target.value)}
-                  placeholder="Asunto del correo..."
+                  placeholder="Referencia del contacto..."
                   className="w-full text-xs p-2.5 border border-slate-300 rounded-xl font-medium text-slate-900 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
 
-              {/* Cuerpo Final */}
+              {/* Mensaje o Contenido Final */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-bold text-slate-700 uppercase">
-                    Cuerpo del Correo Enviado (Texto Final Real):
+                    {outreachChannel === "whatsapp"
+                      ? "Mensaje Enviado por WhatsApp:"
+                      : outreachChannel === "phone"
+                      ? "Notas de la Llamada / Resumen Conversado:"
+                      : "Cuerpo del Correo Enviado (Texto Final Real):"}
                   </label>
-                  <span className="text-[11px] text-slate-400">Editable / Puedes pegar tu texto final</span>
+                  <span className="text-[11px] text-slate-400">Editable / Puedes ajustar los detalles</span>
                 </div>
                 <textarea
                   rows={8}
                   required
                   value={finalBody}
                   onChange={(e) => setFinalBody(e.target.value)}
-                  placeholder="Pega aquí el contenido final del correo tal como se envió desde tu Outlook..."
+                  placeholder="Detalles del mensaje o conversación sostenida..."
                   className="w-full text-xs p-3 border border-slate-300 rounded-xl font-mono leading-relaxed text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
@@ -1558,19 +1826,20 @@ export default function SalesCommandCenter() {
               </button>
               <button
                 type="button"
-                disabled={submitting || !finalSubject.trim() || !finalBody.trim()}
+                disabled={submitting || !finalBody.trim()}
                 onClick={async () => {
                   setConfirmOutreachModalOpen(false);
                   await handleDecision(outreachConfirmTarget.opportunity_id, "APPROVE", null, {
-                    final_subject: finalSubject.trim(),
+                    final_subject: finalSubject.trim() || `Contacto vía ${outreachChannel.toUpperCase()}`,
                     final_body: finalBody.trim(),
+                    channel: outreachChannel.toUpperCase(),
                     sent_at: new Date().toISOString()
                   });
                 }}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Confirmar Envío y Avanzar a Gate 3 (Discovery)</span>
+                <span>Confirmar Gestión y Avanzar a Gate 3 (Discovery)</span>
               </button>
             </div>
           </div>

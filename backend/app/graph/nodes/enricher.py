@@ -37,6 +37,17 @@ def enricher_agent_node(state: AgentState) -> AgentState:
     
     # 2. Análisis con LLM (Gemini) sobre los datos recolectados
     llm = get_chat_model()
+    has_web = bool(opp.website and opp.website.strip())
+    web_context_str = f"Web: {opp.website}" if has_web else "Web: NO POSEE SITIO WEB (Empresa PyME tradicional / Comercio local / Sector productivo)"
+    sme_guidance = "" if has_web else """
+    NOTA ESPECIAL PARA PYMES SIN SITIO WEB:
+    - Esta empresa no cuenta con portal web corporativo. Su prospección se basa en presencia comercial física, registro mercantil (RUES), Google Maps o redes sociales.
+    - Los dolores principales a enfocar son:
+      1) Archivo físico en bodegas y archivadores (facturas, remisiones, contratos, soportes de pago en papel).
+      2) Información de clientes dispersa en hojas de Excel no sincronizadas.
+      3) Vulnerabilidad de computadores locales sin respaldos automatizados en la nube ante daños o virus.
+    - En suggested_contacts, sugiere cargos como 'Gerente General / Propietario', 'Director Administrativo' o 'Jefe de Operaciones'. Deja email en null si no está verificado.
+    """
     
     if llm:
         prompt = f"""
@@ -48,8 +59,9 @@ def enricher_agent_node(state: AgentState) -> AgentState:
         4. Automatización con IA
         
         Datos de la empresa:
-        - Nombre: {opp.company_name} (País: {opp.country}, Web: {opp.website})
+        - Nombre: {opp.company_name} (País: {opp.country}, {web_context_str})
         - Datos de APIs externas (Apollo/Hunter/LinkedIn): {json.dumps(enriched_api_data, default=str)}
+        {sme_guidance}
         {feedback_note}
         
         Analiza la información y genera un JSON estricto con:
@@ -127,7 +139,34 @@ def _apply_fallback_enrichment(opp, enriched_api_data=None):
     """Enriquecimiento heurístico con contexto realista del portafolio INNOVAIT"""
     api_contacts = enriched_api_data.get("contacts_found", []) if enriched_api_data else []
     api_tech = enriched_api_data.get("technologies_detected", []) if enriched_api_data else []
+    has_website = bool(opp.website and opp.website.strip())
     
+    # 1. Caso especial: Empresas PyME sin página web (Comercio tradicional / Distribuidoras / IPS / Logística)
+    if not has_website:
+        opp.icp_data = ICPData(
+            industry="Comercio Mayorista / Distribución y Servicios PyME",
+            size_employees=55,
+            annual_revenue_range="1.5M - 5M USD",
+            current_stack=["Computadores Locales en Red", "Software Contable (Siigo / World Office / Excel)", "Archivo físico en bodegas y archivadores"],
+            pain_points=[
+                "Acumulación masiva de remisiones, facturas físicas y carpetas en estanterías de bodega",
+                "Datos de clientes y proveedores dispersos en múltiples hojas de Excel no sincronizadas",
+                "Computadores locales con riesgo de pérdida total de datos por falta de respaldo automatizado en la nube"
+            ],
+            fit_score=93,
+            icp_reasoning="Ajuste óptimo para DocumentTrack (digitalización con IA y búsqueda inmediata de remisiones) y Data Hygiene (limpieza de Excels)."
+        )
+        if not opp.contacts:
+            opp.contacts.append(ContactPerson(
+                name="Gerente General / Propietario",
+                role="Representante Legal / Gerente General",
+                email=None,
+                phone="+57 (PBX / WhatsApp Comercial)",
+                linkedin_url=f"https://www.linkedin.com/search/results/people/?keywords={opp.company_name}%20gerente"
+            ))
+        return
+
+    # 2. Caso empresas con dominio web institucional
     opp.icp_data = ICPData(
         industry="Servicios Financieros / Logística",
         size_employees=320,
