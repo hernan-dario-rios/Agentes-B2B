@@ -292,6 +292,119 @@ export default function SalesCommandCenter() {
     }
   };
 
+  // Modal Edición de Contactos
+  const [editContactsModalOpen, setEditContactsModalOpen] = useState(false);
+  const [editContactsTarget, setEditContactsTarget] = useState(null);
+  const [editingContactsList, setEditingContactsList] = useState([]);
+  const [savingContacts, setSavingContacts] = useState(false);
+
+  const handleOpenEditContacts = (gateOrOpp) => {
+    setEditContactsTarget(gateOrOpp);
+    const oppId = gateOrOpp.opportunity_id;
+    const fullOpp = opportunities.find((o) => o.opportunity_id === oppId);
+    const existing = fullOpp?.contacts || gateOrOpp.context_details?.contacts || [];
+    if (existing.length > 0) {
+      setEditingContactsList(existing.map((c) => ({ ...c })));
+    } else {
+      setEditingContactsList([
+        {
+          name: "",
+          role: "",
+          email: "",
+          phone: "",
+          linkedin_url: "",
+          status: "PENDING_CONTACT"
+        }
+      ]);
+    }
+    setEditContactsModalOpen(true);
+  };
+
+  const handleAddContactRow = () => {
+    setEditingContactsList((prev) => [
+      ...prev,
+      {
+        name: "",
+        role: "",
+        email: "",
+        phone: "",
+        linkedin_url: "",
+        status: "PENDING_CONTACT"
+      }
+    ]);
+  };
+
+  const handleRemoveContactRow = (index) => {
+    setEditingContactsList((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleContactFieldChange = (index, field, value) => {
+    setEditingContactsList((prev) => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  const handleSaveContacts = async () => {
+    if (!editContactsTarget) return;
+    setSavingContacts(true);
+    try {
+      const oppId = editContactsTarget.opportunity_id;
+      const validContacts = editingContactsList.filter(
+        (c) => c.name?.trim() || c.email?.trim() || c.phone?.trim()
+      );
+      if (validContacts.length === 0) {
+        alert("Por favor ingrese al menos el nombre o correo del contacto.");
+        setSavingContacts(false);
+        return;
+      }
+
+      if (apiConnected) {
+        const res = await fetch(`${API_BASE}/opportunities/${oppId}/contacts`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(validContacts)
+        });
+        if (res.ok) {
+          await fetchData();
+          setEditContactsModalOpen(false);
+          alert("¡Contactos actualizados y consignados exitosamente!");
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Error al actualizar contactos: ${err.detail || "Error en el servidor"}`);
+        }
+      } else {
+        // Simulación local
+        setPendingGates((prev) =>
+          prev.map((g) => {
+            if (g.opportunity_id === oppId) {
+              return {
+                ...g,
+                context_details: {
+                  ...g.context_details,
+                  contacts: validContacts
+                },
+                key_metrics: {
+                  ...g.key_metrics,
+                  contact: `${validContacts[0].name} (${validContacts[0].role})`
+                }
+              };
+            }
+            return g;
+          })
+        );
+        setEditContactsModalOpen(false);
+        alert("Contacto actualizado localmente.");
+      }
+    } catch (e) {
+      console.error("Error guardando contactos:", e);
+      alert(`Error de comunicación: ${e.message}`);
+    } finally {
+      setSavingContacts(false);
+    }
+  };
+
   // Modal Nueva Oportunidad
   const [newOppModalOpen, setNewOppModalOpen] = useState(false);
   const [newCompany, setNewCompany] = useState("");
@@ -1046,13 +1159,22 @@ export default function SalesCommandCenter() {
                               </div>
 
                               {gate.key_metrics?.contact && (
-                                <span className="text-[11px] font-semibold text-slate-700 bg-white px-2.5 py-1 rounded-md border border-slate-200 shrink-0">
-                                  Contacto: <strong className="text-slate-900">{gate.key_metrics.contact}</strong>
+                                <span className="text-[11px] font-semibold text-slate-700 bg-white px-2.5 py-1 rounded-md border border-slate-200 shrink-0 inline-flex items-center">
+                                  <span>Contacto: <strong className="text-slate-900">{gate.key_metrics.contact}</strong></span>
                                   {gate.context_details?.contacts?.[0]?.phone && (
                                     <span className="ml-1.5 text-emerald-700 font-bold">
                                       ({gate.context_details.contacts[0].phone})
                                     </span>
                                   )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditContacts(gate)}
+                                    className="ml-2 text-indigo-600 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 p-1 rounded-md border border-indigo-200 transition-colors inline-flex items-center space-x-1 cursor-pointer"
+                                    title="Modificar o consignar correo/teléfono de contacto"
+                                  >
+                                    <Pencil className="w-3 h-3 text-indigo-700" />
+                                    <span className="text-[10px] font-bold text-indigo-700">Editar</span>
+                                  </button>
                                 </span>
                               )}
                             </div>
@@ -1317,16 +1439,26 @@ export default function SalesCommandCenter() {
 
                             {/* 2. SECCIÓN: TOMADORES DE DECISIÓN Y CONTACTOS CLAVE */}
                             <div className="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-2">
-                              <div className="flex items-center justify-between">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
                                 <div className="flex items-center space-x-2">
                                   <Users className="w-4 h-4 text-indigo-600" />
                                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     Contactos Clave y Tomadores de Decisión Detectados
                                   </h4>
                                 </div>
-                                <span className="text-[11px] text-slate-500">
-                                  Enriquecido vía Apollo.io & Hunter.io
-                                </span>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditContacts(gate)}
+                                    className="text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg transition-colors flex items-center space-x-1 cursor-pointer shadow-2xs"
+                                  >
+                                    <Pencil className="w-3 h-3 text-indigo-600" />
+                                    <span>Editar / Consignar Contacto</span>
+                                  </button>
+                                  <span className="text-[11px] text-slate-500">
+                                    Enriquecido vía Apollo.io & Hunter.io
+                                  </span>
+                                </div>
                               </div>
 
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
@@ -1976,6 +2108,7 @@ export default function SalesCommandCenter() {
                     final_subject: finalSubject.trim() || `Contacto vía ${outreachChannel.toUpperCase()}`,
                     final_body: finalBody.trim(),
                     channel: outreachChannel.toUpperCase(),
+                    recipient: finalRecipient.trim(),
                     sent_at: new Date().toISOString()
                   });
                 }}
@@ -1983,6 +2116,175 @@ export default function SalesCommandCenter() {
               >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Confirmar Gestión y Avanzar a Gate 3 (Discovery)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDITAR / CONSIGNAR CONTACTOS DE LA OPORTUNIDAD */}
+      {editContactsModalOpen && editContactsTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[90vh]">
+            {/* Header del Modal */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Editar / Consignar Contactos
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Empresa: <strong className="text-slate-800">{editContactsTarget.company_name}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditContactsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Lista editable de contactos */}
+            <div className="mt-4 space-y-4 flex-1 overflow-y-auto pr-1">
+              <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 text-xs text-indigo-950 flex items-start space-x-2">
+                <Info className="w-4 h-4 text-indigo-700 mt-0.5 shrink-0" />
+                <p>
+                  Ingresa o actualiza el correo electrónico verificado, teléfono/WhatsApp o cargo del tomador de decisión. Los cambios quedarán consignados permanentemente en la base de datos y se usarán en las etapas de contacto y propuesta.
+                </p>
+              </div>
+
+              {editingContactsList.map((contact, idx) => (
+                <div key={idx} className="p-4 bg-slate-50/90 rounded-xl border border-slate-200 space-y-3 relative">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                      Contacto #{idx + 1} {idx === 0 && <span className="text-indigo-600 font-extrabold">(Principal)</span>}
+                    </span>
+                    {editingContactsList.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveContactRow(idx)}
+                        className="text-xs text-rose-600 hover:text-rose-800 font-semibold cursor-pointer"
+                      >
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        Nombre Completo:
+                      </label>
+                      <input
+                        type="text"
+                        value={contact.name}
+                        onChange={(e) => handleContactFieldChange(idx, "name", e.target.value)}
+                        placeholder="Ej: Javier Andrés Loaiza"
+                        className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        Cargo / Rol:
+                      </label>
+                      <input
+                        type="text"
+                        value={contact.role}
+                        onChange={(e) => handleContactFieldChange(idx, "role", e.target.value)}
+                        placeholder="Ej: Gerente de Tecnología / Dueño"
+                        className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        Correo Electrónico (Email):
+                      </label>
+                      <input
+                        type="email"
+                        value={contact.email || ""}
+                        onChange={(e) => handleContactFieldChange(idx, "email", e.target.value)}
+                        placeholder="ejemplo@empresa.com"
+                        className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                        Teléfono / Móvil / WhatsApp:
+                      </label>
+                      <input
+                        type="text"
+                        value={contact.phone || ""}
+                        onChange={(e) => handleContactFieldChange(idx, "phone", e.target.value)}
+                        placeholder="+57 300 123 4567"
+                        className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                      Enlace de LinkedIn (Opcional):
+                    </label>
+                    <input
+                      type="url"
+                      value={contact.linkedin_url || ""}
+                      onChange={(e) => handleContactFieldChange(idx, "linkedin_url", e.target.value)}
+                      placeholder="https://www.linkedin.com/in/usuario"
+                      className="w-full text-xs p-2.5 border border-slate-300 rounded-lg bg-white font-mono text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={handleAddContactRow}
+                className="w-full py-2 border-2 border-dashed border-indigo-200 hover:border-indigo-400 text-indigo-700 hover:bg-indigo-50/50 rounded-xl text-xs font-bold transition-colors flex items-center justify-center space-x-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Agregar Otro Contacto a esta Empresa</span>
+              </button>
+            </div>
+
+            {/* Footer de Acciones */}
+            <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-end space-x-3">
+              <button
+                type="button"
+                disabled={savingContacts}
+                onClick={() => setEditContactsModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={savingContacts}
+                onClick={handleSaveContacts}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {savingContacts ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                    <span>Guardando Datos...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Guardar y Consignar Contacto</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

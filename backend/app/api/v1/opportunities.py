@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.schemas.opportunity import (
+    ContactPerson,
     HuntLeadsRequest,
     HuntLeadsResponse,
     OpportunityContext,
@@ -64,3 +65,16 @@ def get_opportunity(opp_id: str):
     if not opp:
         raise HTTPException(status_code=404, detail="Oportunidad no encontrada")
     return opp
+
+
+@router.put("/{opp_id}/contacts", response_model=OpportunityContext)
+def update_opportunity_contacts(opp_id: str, contacts: List[ContactPerson]):
+    """
+    Actualiza la lista de personas de contacto (nombre, cargo, correo, teléfono, linkedin)
+    de una oportunidad específica y persiste los cambios.
+    """
+    try:
+        return opportunity_service.update_contacts(opp_id, contacts)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+

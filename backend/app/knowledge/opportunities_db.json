@@ -176,9 +176,9 @@
     },
     "contacts": [
       {
-        "name": "Jefe de Sistemas",
-        "role": "Jefe de Sistemas y Soporte ERP (SAP B1)",
-        "email": "comunicaciones@opticacolombiana.com",
+        "name": "Simon Henao Giraldo",
+        "role": "Gerente General",
+        "email": "simon.henao@opticacolombiana.com",
         "linkedin_url": "https://www.linkedin.com/company/optica-colombiana/",
         "phone": "+57 (601) 326 4500",
         "status": "PENDING_CONTACT"
@@ -212,7 +212,7 @@
     ],
     "last_human_feedback": null,
     "created_at": "2026-10-28T15:30:00Z",
-    "updated_at": "2026-10-28T15:35:00Z"
+    "updated_at": "2026-10-29T17:27:21.452862Z"
   },
   {
     "opportunity_id": "opp_20261029155940_003",

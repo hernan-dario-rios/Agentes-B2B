@@ -102,6 +102,17 @@ class OpportunityService:
     def list_opportunities(self) -> List[OpportunityContext]:
         return list(self.opportunities.values())
 
+    def update_contacts(self, opp_id: str, contacts: List[ContactPerson]) -> OpportunityContext:
+        """Actualiza la lista de personas de contacto de una oportunidad y persiste los cambios."""
+        opp = self.opportunities.get(opp_id)
+        if not opp:
+            raise ValueError(f"Oportunidad {opp_id} no encontrada.")
+        opp.contacts = contacts
+        opp.updated_at = datetime.now(timezone.utc)
+        self.opportunities[opp_id] = opp
+        self._save_db()
+        return opp
+
     def get_pending_gates(self) -> List[PendingGateSummary]:
         pending = []
         for opp_id, opp in self.opportunities.items():
@@ -429,6 +440,12 @@ class OpportunityService:
                     opp.outreach.body_markdown = str(modifications["final_body"]).strip()
                 if modifications.get("channel") and opp.outreach:
                     opp.outreach.channel = str(modifications["channel"]).strip()
+                if modifications.get("recipient") and opp.contacts:
+                    val = str(modifications["recipient"]).strip()
+                    if "@" in val:
+                        opp.contacts[0].email = val
+                    elif val:
+                        opp.contacts[0].phone = val
             if opp.outreach:
                 opp.outreach.sent_at = datetime.now(timezone.utc)
             opp.stage = PipelineStage.WAITING_HUMAN_APPROVAL
