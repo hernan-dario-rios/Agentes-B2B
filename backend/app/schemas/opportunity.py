@@ -109,3 +109,32 @@ class OpportunityContext(BaseModel):
     last_human_feedback: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class HuntLeadsRequest(BaseModel):
+    sector: str = Field(default="Transporte de Carga y Logística", description="Sector industrial objetivo")
+    city: str = Field(default="Medellín y Antioquia", description="Ciudad o región geográfica")
+    company_type: str = Field(default="all", description="Tipo de empresa: 'all', 'sme' (PyMEs sin web) o 'corporate' (Con web y TI)")
+    limit: int = Field(default=5, ge=1, le=10, description="Cantidad de prospectos a descubrir (1 a 10)")
+
+
+class HuntedCandidate(BaseModel):
+    company_name: str
+    website: Optional[str] = None
+    city: str
+    sector: str
+    estimated_size: Optional[str] = None
+    key_driver: str
+    is_sme: bool = False
+    opportunity_id: Optional[str] = None
+
+
+class HuntLeadsResponse(BaseModel):
+    status: str
+    discovered_count: int
+    sector: str
+    city: str
+    company_type: str
+    message: str
+    opportunities: List[OpportunityContext]
+

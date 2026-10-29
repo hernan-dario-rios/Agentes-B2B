@@ -37,7 +37,9 @@ import {
   Eye,
   Info,
   Phone,
-  MessageSquare
+  MessageSquare,
+  Compass,
+  Radio
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -169,6 +171,124 @@ export default function SalesCommandCenter() {
       setFinalBody(outreachConfirmTarget.context_details?.body_markdown || outreachConfirmTarget.recommendation_summary || "");
       const email = outreachConfirmTarget.context_details?.contacts?.[0]?.email || outreachConfirmTarget.key_metrics?.contact || "";
       setFinalRecipient(email || "correo@empresa.com");
+    }
+  };
+
+  // Modal Radar de Prospección Autónoma (Lead Hunter Agent)
+  const [radarModalOpen, setRadarModalOpen] = useState(false);
+  const [radarSector, setRadarSector] = useState("Transporte de Carga y Logística");
+  const [radarCity, setRadarCity] = useState("Medellín y Antioquia");
+  const [radarCompanyType, setRadarCompanyType] = useState("all");
+  const [radarLimit, setRadarLimit] = useState(5);
+  const [radarScanning, setRadarScanning] = useState(false);
+  const [radarResult, setRadarResult] = useState(null);
+
+  const radarSectorList = [
+    {
+      id: "TRANSPORTE_LOGISTICA",
+      name: "Transporte de Carga y Logística",
+      icon: "🚛",
+      pain: "Remesas físicas, guías de despacho en papel, dispersión de bodegas y demoras en liquidación de fletes.",
+      solution: "INNOVAIT DocumentTrack (Tier 2/3)"
+    },
+    {
+      id: "FINANCIERO_COOPERATIVO",
+      name: "Cooperativas y Sector Financiero",
+      icon: "🏦",
+      pain: "Pagarés en papel, expedientes de crédito en bodegas físicas y duplicidad en base de datos de asociados.",
+      solution: "DocumentTrack + Data Hygiene"
+    },
+    {
+      id: "DISTRIBUCION_MAYORISTA",
+      name: "Comercio Mayorista y Distribución",
+      icon: "📦",
+      pain: "Facturas de proveedores manuales, órdenes de compra físicas y desorden en catálogo de clientes.",
+      solution: "DocumentTrack + Data Hygiene"
+    },
+    {
+      id: "SALUD_CLINICAS",
+      name: "Salud, Clínicas y Centros Médicos",
+      icon: "🏥",
+      pain: "Archivo pasivo de historias clínicas, consentimientos informados en papel y facturación CUFE/RIPS.",
+      solution: "DocumentTrack Cloud + Copias Inmutables"
+    },
+    {
+      id: "MANUFACTURA_INDUSTRIA",
+      name: "Manufactura e Industria",
+      icon: "🏭",
+      pain: "Órdenes de producción en papel, hojas de ruta de taller y falta de respaldos inmutables en nube.",
+      solution: "DocumentTrack + Landing Zone AWS"
+    }
+  ];
+
+  const radarCityList = [
+    "Medellín y Antioquia",
+    "Bogotá D.C.",
+    "Cali y Valle del Cauca",
+    "Barranquilla y Costa Caribe",
+    "Bucaramanga y Santanderes",
+    "Eje Cafetero (Manizales, Pereira, Armenia)",
+    "Nacional (Colombia)"
+  ];
+
+  const handleRunRadar = async () => {
+    setRadarScanning(true);
+    setRadarResult(null);
+    try {
+      if (apiConnected) {
+        const res = await fetch(`${API_BASE}/opportunities/hunt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sector: radarSector,
+            city: radarCity,
+            company_type: radarCompanyType,
+            limit: Number(radarLimit)
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setRadarResult(data);
+          await fetchData();
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Error en el radar: ${err.detail || "No fue posible completar la prospección autónoma."}`);
+        }
+      } else {
+        // Simulación local interactiva
+        const simulated = [
+          {
+            company_name: "Transportes Saferbo S.A.",
+            website: "https://www.saferbo.com",
+            city: radarCity,
+            sector: radarSector,
+            key_driver: "Flujo masivo de remesas y dispersión de agencias físicas.",
+            is_sme: false
+          },
+          {
+            company_name: "Transprensa Distribución y Logística",
+            website: null,
+            city: radarCity,
+            sector: radarSector,
+            key_driver: "Archivo físico de remisiones y control en planillas Excel.",
+            is_sme: true
+          }
+        ];
+        setRadarResult({
+          status: "success",
+          discovered_count: simulated.length,
+          sector: radarSector,
+          city: radarCity,
+          company_type: radarCompanyType,
+          message: `Simulación local: Se descubrieron ${simulated.length} prospectos reales para ${radarSector}.`,
+          opportunities: simulated
+        });
+      }
+    } catch (e) {
+      console.error("Error ejecutando radar:", e);
+      alert(`Error al contactar al orquestador: ${e.message}`);
+    } finally {
+      setRadarScanning(false);
     }
   };
 
@@ -602,8 +722,19 @@ export default function SalesCommandCenter() {
             </div>
 
             <button
+              onClick={() => {
+                setRadarResult(null);
+                setRadarModalOpen(true);
+              }}
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-sm font-bold shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
+            >
+              <Compass className="w-4 h-4 text-emerald-100" />
+              <span>🛰️ Radar de Prospección</span>
+            </button>
+
+            <button
               onClick={() => setNewOppModalOpen(true)}
-              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all"
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Nuevo Prospecto</span>
@@ -752,13 +883,25 @@ export default function SalesCommandCenter() {
                 <p className="text-sm text-slate-500 max-w-md mx-auto mt-1">
                   Todos los prospectos y propuestas han sido aprobados o procesados por los agentes. Puedes crear un nuevo prospecto para iniciar el ciclo.
                 </p>
-                <button
-                  onClick={() => setNewOppModalOpen(true)}
-                  className="mt-4 inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Procesar Nuevo Prospecto</span>
-                </button>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={() => {
+                      setRadarResult(null);
+                      setRadarModalOpen(true);
+                    }}
+                    className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-sm font-bold shadow-sm shadow-emerald-600/20 cursor-pointer"
+                  >
+                    <Compass className="w-4 h-4 text-emerald-100" />
+                    <span>🛰️ Activar Radar de Prospección</span>
+                  </button>
+                  <button
+                    onClick={() => setNewOppModalOpen(true)}
+                    className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold border border-slate-200 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Ingresar Manual</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -1841,6 +1984,239 @@ export default function SalesCommandCenter() {
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Confirmar Gestión y Avanzar a Gate 3 (Discovery)</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RADAR DE PROSPECCIÓN AUTÓNOMA (LEAD HUNTER AGENT) */}
+      {radarModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[92vh]">
+            {/* Header del Modal */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20">
+                  <Compass className={`w-6 h-6 ${radarScanning ? "animate-spin" : ""}`} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                    <span>Radar de Prospección Autónoma B2B</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200">
+                      Lead Hunter Agent
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Búsqueda y pre-calificación inteligente de empresas reales colombianas con alto potencial
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!radarScanning) setRadarModalOpen(false);
+                }}
+                disabled={radarScanning}
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-40"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Contenido del Modal */}
+            <div className="mt-4 space-y-4 flex-1 overflow-y-auto pr-1">
+              {/* Si hay resultado exitoso del escaneo */}
+              {radarResult ? (
+                <div className="space-y-4 animate-in fade-in">
+                  <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start space-x-3">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-sm font-bold text-emerald-950">
+                        ¡Escaneo completado! {radarResult.discovered_count} nuevos prospectos calificados
+                      </h4>
+                      <p className="text-xs text-emerald-800 mt-0.5">
+                        {radarResult.message}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+                      Prospectos Descubiertos e Integrados a Gate 1:
+                    </span>
+                    <div className="mt-2 space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {radarResult.opportunities?.map((opp, idx) => (
+                        <div
+                          key={opp.opportunity_id || idx}
+                          className="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200 text-xs flex items-center justify-between transition-colors"
+                        >
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-bold text-slate-900">{opp.company_name}</span>
+                              {opp.website ? (
+                                <span className="text-[10px] bg-blue-50 text-blue-700 font-semibold px-2 py-0.2 rounded border border-blue-100">
+                                  Corporativa
+                                </span>
+                              ) : (
+                                <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.2 rounded border border-emerald-100">
+                                  🟢 PyME (PBX/WhatsApp)
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              {opp.icp_data?.industry || opp.sector || "Sector B2B"} • {opp.country || "Colombia"}
+                            </p>
+                          </div>
+                          <span className="text-[11px] font-bold text-emerald-700 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-2xs">
+                            Pausado en Gate 1
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Selector de Sector */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                      1. Sector Industrial Objetivo:
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {radarSectorList.map((sec) => (
+                        <div
+                          key={sec.id}
+                          onClick={() => setRadarSector(sec.name)}
+                          className={`p-3 rounded-xl border text-xs cursor-pointer transition-all ${
+                            radarSector === sec.name
+                              ? "border-emerald-600 bg-emerald-50/70 text-emerald-950 ring-2 ring-emerald-300 shadow-2xs"
+                              : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2 font-bold text-slate-900">
+                            <span className="text-base">{sec.icon}</span>
+                            <span>{sec.name}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-tight">
+                            {sec.pain}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Ciudad y Perfil */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        2. Ciudad o Región Geográfica:
+                      </label>
+                      <select
+                        value={radarCity}
+                        onChange={(e) => setRadarCity(e.target.value)}
+                        className="w-full text-xs p-2.5 border border-slate-300 rounded-xl bg-white font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        {radarCityList.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                        3. Perfil de Empresa:
+                      </label>
+                      <select
+                        value={radarCompanyType}
+                        onChange={(e) => setRadarCompanyType(e.target.value)}
+                        className="w-full text-xs p-2.5 border border-slate-300 rounded-xl bg-white font-medium text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        <option value="all">🌐 Todos los tipos (PyMEs y Corporativas)</option>
+                        <option value="sme">🟢 PyMEs Tradicionales (Sin web / PBX & WhatsApp)</option>
+                        <option value="corporate">🏢 Medianas y Grandes (Con sitio web & TI)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Cantidad de Prospectos */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                      4. Cantidad de Prospectos a Descubrir:
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      {[3, 5, 8, 10].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setRadarLimit(num)}
+                          className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                            radarLimit === num
+                              ? "bg-slate-900 text-white border-slate-900 shadow-xs"
+                              : "bg-white text-slate-600 hover:bg-slate-100 border-slate-200"
+                          }`}
+                        >
+                          {num} Prospectos
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Cuadro de Garantía de Calidad */}
+                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-start space-x-2.5">
+                    <Sparkles className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+                    <p className="leading-relaxed">
+                      El <strong>Lead Hunter Agent</strong> consultará fuentes de datos empresariales reales (directorios de Cámaras de Comercio, RUES y Apollo), <strong>descartará duplicados</strong> que ya tengas registrados, calculará el encaje con INNOVAIT y depositará automáticamente los prospectos en el <strong>Gate 1</strong>.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer de Acciones */}
+            <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-end space-x-3">
+              {radarResult ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRadarModalOpen(false);
+                    setActiveTab("inbox");
+                  }}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition-all flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <Inbox className="w-4 h-4" />
+                  <span>Ir a Bandeja de Entrada (Ver Gate 1)</span>
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={radarScanning}
+                    onClick={() => setRadarModalOpen(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={radarScanning}
+                    onClick={handleRunRadar}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 shadow-md shadow-emerald-600/20 transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {radarScanning ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-white" />
+                        <span>Escaneando Fuentes Comerciales...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Compass className="w-4 h-4 text-emerald-100" />
+                        <span>Activar Radar ({radarLimit} Prospectos)</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

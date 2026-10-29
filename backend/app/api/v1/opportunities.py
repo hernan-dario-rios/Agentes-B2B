@@ -1,9 +1,14 @@
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.schemas.opportunity import OpportunityContext
+from app.schemas.opportunity import (
+    HuntLeadsRequest,
+    HuntLeadsResponse,
+    OpportunityContext,
+)
 from app.services.opportunity_service import opportunity_service
+from app.services.hunter_service import hunter_service
 
 router = APIRouter(prefix="/opportunities", tags=["Oportunidades"])
 
@@ -14,10 +19,29 @@ class CreateOpportunityRequest(BaseModel):
     country: str = Field(default="Colombia", examples=["Colombia"])
 
 
+@router.get("/hunt/presets", response_model=Dict[str, Any])
+def get_hunter_presets():
+    """
+    Retorna la configuración preestablecida de sectores, ciudades y tipos de empresa
+    disponibles para el Radar de Prospección Autónoma.
+    """
+    return hunter_service.get_presets()
+
+
+@router.post("/hunt", response_model=HuntLeadsResponse)
+def hunt_opportunities(req: HuntLeadsRequest):
+    """
+    Dispara el Radar de Prospección Autónoma (Lead Hunter Agent).
+    Descubre empresas reales, las califica por potencial ICP y crea automáticamente
+    las oportunidades en Gate 1 (Validación de Target).
+    """
+    return hunter_service.hunt_leads(req)
+
+
 @router.post("/", response_model=OpportunityContext, status_code=201)
 def create_opportunity(req: CreateOpportunityRequest):
     """
-    Crea una nueva oportunidad y dispara el primer agente autónomo (Scraper & Enricher).
+    Crea una nueva oportunidad manual y dispara el primer agente autónomo (Scraper & Enricher).
     El flujo se pausará automáticamente en Gate 1 (Validación de Target).
     """
     return opportunity_service.create_opportunity(

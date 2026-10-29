@@ -58,6 +58,8 @@
       "channel": "EMAIL",
       "subject": "INNOVAIT | Transformación digital y eficiencia operativa para Cooperativa Financiera JFK",
       "body_markdown": "Estimado Javier Andrés Loaiza Mira,\n\nSubgerente de Tecnología e Informática - Cooperativa Financiera JFK\n\nDesde el área de Consultoría de Soluciones de INNOVAIT, hemos analizado con gran admiración la trayectoria y el impacto de Cooperativa Financiera JFK como referente de inclusión y solidez en el sector cooperativo colombiano.\n\nEn organizaciones con la cobertura y volumen de operaciones de JFK, hemos identificado que el crecimiento suele verse desafiado por tres puntos críticos que impactan directamente el rendimiento y los costos de operación:\n\n1. Custodia y trazabilidad de archivos físicos: Altos costos de bodegaje para pagarés, garantías y expedientes de crédito, sumado a demoras en la recuperación manual ante requerimientos de auditoría y entes de control.\n2. Inconsistencia y desnormalización de datos: Duplicidad o fragmentación de registros en las bases de datos de asociados, lo que complejiza la reportería regulatoria y las campañas de crédito.\n3. Resiliencia de infraestructura tecnológica: Riesgos asociados a la continuidad del negocio por cargas de trabajo aún concentradas en servidores on-premise sin esquemas inmutables de recuperación ante desastres en nube.\n\nEn INNOVAIT acompañamos a entidades del sector financiero mediante un portafolio de soluciones diseñado para resolver estos desafíos de manera no intrusiva:\n\n• DocumentTrack: Nuestra plataforma integral de gestión documental inteligente con motor OCR basado en IA y validación automática XML/CUFE, que digitaliza y asegura la custodia legal e inmutable de sus expedientes.\n• Data Hygiene: Servicios especializados en saneamiento, deduplicación y normalización algorítmica de bases de datos para garantizar información íntegra y confiable.\n• Cloud Support AWS: Migración y administración de arquitecturas contenerizadas de alta disponibilidad con monitoreo proactivo 24/7 y respaldos cifrados.\n\n¿Tendría 15 minutos disponibles este próximo martes o miércoles para compartirle cómo hemos implementado estas soluciones en entidades homólogas reduciendo hasta un 40% sus tiempos operativos?\n\nQuedamos a su entera disposición y atentos a su amable respuesta.\n\nAtentamente,\nEquipo de Soluciones Corporativas\nINNOVAIT Colombia\nwww.innovait.co",
+      "whatsapp_message": null,
+      "call_script": null,
       "followup_variants": [
         "Javier Andrés, cordial saludo. Quería confirmar si tuvo oportunidad de revisar la propuesta enviada sobre DocumentTrack y modernización cloud.",
         "Javier Andrés, ¿le parecería coordinar una breve llamada de 10 minutos la próxima semana?"
@@ -186,6 +188,8 @@
       "channel": "EMAIL",
       "subject": "INNOVAIT | Integración documental inteligente y trazabilidad CUFE para SAP Business One en Óptica Colombiana",
       "body_markdown": "A la atención de la Jefatura de Sistemas y Operaciones de Óptica Colombiana S.A.S.,\n\nDesde el equipo de Consultoría Tecnológica de INNOVAIT, seguimos con gran interés la destacada operación retail de Óptica Colombiana y su red de puntos de atención a nivel nacional.\n\nEn empresas con amplia cobertura de tiendas e integración con sistemas ERP como SAP Business One, es común enfrentar tres desafíos clave:\n\n1. Centralización de comprobantes y órdenes: Trazabilidad manual de remisiones, facturas electrónicas y órdenes de laboratorio entre tiendas y sede central.\n2. Consistencia en bases de datos: Duplicidad o demoras en la sincronización de inventarios y clientes entre los puntos POS y el ERP.\n3. Respaldo y custodia inmutable: Garantizar almacenamiento seguro y cumplimiento tributario DIAN de toda la documentación generada en sucursales.\n\nCon nuestra plataforma DocumentTrack y nuestros servicios de Data Hygiene y Cloud Support, facilitamos una integración nativa con SAP B1 para automatizar la radicación, validación CUFE y extracción OCR de documentos comerciales.\n\nNos encantaría coordinar una breve llamada de 15 minutos para presentarles casos de éxito similares en el sector retail.\n\nAtentamente,\nEquipo de Soluciones Corporativas\nINNOVAIT Colombia\nPBX: (601) 326 4500 | contacto@innovait.co",
+      "whatsapp_message": "Hola Jefe de Sistemas, cordial saludo. Le saluda el equipo de Soluciones Corporativas de INNOVAIT.\n\nLe escribimos porque sabemos que en empresas con el dinamismo y operación de *Óptica Colombiana S.A.S.*, uno de los mayores dolores de cabeza diarios es la acumulación de remisiones, facturas y carpetas de archivo físico, además del desorden de datos de clientes entre sedes.\n\nCon nuestra plataforma *DocumentTrack*, ayudamos a gerentes y directores de operaciones a digitalizar de forma automática con IA todos sus expedientes con búsqueda instantánea en segundos, liberando espacio en bodegas y asegurando sus respaldos en la nube sin costos desproporcionados.\n\n¿Tendría 5 a 10 minutos esta semana para una breve demostración por computador? Quedo muy atento a su respuesta.",
+      "call_script": "📞 GUION DE LLAMADA TELEFÓNICA (PROSPECCIÓN PYME / EMPRESAS SIN SITIO WEB)\n\n[PASO 1: FILTRO DE RECEPCIÓN / ASISTENTE]\n\"Buenos días / tardes, ¿me comunica por favor con la gerencia o despacho de don(ña) Jefe de Sistemas? De parte de INNOVAIT sobre un asunto de modernización documental y control de sedes de Óptica Colombiana S.A.S..\"\n• Si preguntan el motivo: \"Estamos coordinando una presentación de digitalización y respaldo cloud para la operación.\"\n\n[PASO 2: CONEXIÓN CON EL GERENTE / TOMADOR DE DECISIÓN]\n\"Don(ña) Jefe de Sistemas, qué tal, un saludo cordial. Le habla el equipo de Soluciones de INNOVAIT.\nLo llamo muy puntualmente porque apoyamos a empresas como Óptica Colombiana S.A.S. a resolver el problema de acumulación de carpetas, facturas físicas y remisiones en bodegas mediante nuestra plataforma DocumentTrack.\nAdemás, les ayudamos a que su información contable y de clientes quede blindada y respaldada en la nube, y no en computadores locales vulnerables a daños o virus.\"\n\n[PASO 3: PREGUNTA DE CALIFICACIÓN Y CIERRE (15 MINUTOS)]\n\"¿Ustedes actualmente tienen dolor de cabeza con el archivo físico o con documentos que se embolatan entre puntos de atención?\nMe gustaría mostrarle en 10 o 15 minutos por computador cómo opera DocumentTrack y cómo les ahorra tiempo y costos de bodega. ¿Le queda mejor el martes en la mañana o el miércoles en la tarde?\"\n\n[MANEJO DE OBJECIONES TÍPICAS]:\n• 'Ya tenemos un software contable (Siigo / World Office / etc.)': -> 'Excelente, DocumentTrack no reemplaza su contabilidad, se integra para custodiar y extraer con OCR inteligente todos los papeles y facturas de soporte.'\n• 'Envíeme la información por WhatsApp o correo': -> 'Con todo gusto don(ña) Jefe de Sistemas, ¿me confirma a qué número o correo se lo despacho hoy mismo? Y le pego una timbradita corta mañana para verificar que lo haya recibido bien.'",
       "followup_variants": [
         "Estimados señores Óptica Colombiana, confirmamos recepción de nuestra comunicación previa.",
         "¿Sería posible coordinar un breve espacio virtual con el área de TI?"
@@ -209,5 +213,225 @@
     "last_human_feedback": null,
     "created_at": "2026-10-28T15:30:00Z",
     "updated_at": "2026-10-28T15:35:00Z"
+  },
+  {
+    "opportunity_id": "opp_20261029155940_003",
+    "company_name": "Coordinadora Mercantil S.A.",
+    "website": "https://coordinadora.com",
+    "country": "Colombia",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Servicios Financieros / Logística",
+      "size_employees": 320,
+      "annual_revenue_range": "8M - 20M USD",
+      "current_stack": [
+        "Windows Server 2016",
+        "PostgreSQL / SQL Server desnormalizado",
+        "Archivo físico en bodegas"
+      ],
+      "pain_points": [
+        "Pérdida de trazabilidad en expedientes y contratos físicos",
+        "Duplicidad recurrente de clientes en la base de datos operativa",
+        "Servidores locales sin respaldo en nube ni plan de recuperación ante desastres"
+      ],
+      "fit_score": 88,
+      "icp_reasoning": "Gran ajuste para DocumentTrack para digitalización y posterior migración cloud segura."
+    },
+    "contacts": [
+      {
+        "name": "Líder de Tecnología",
+        "role": "Director de TI & Transformación Digital",
+        "email": null,
+        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=coordinadora.com%20tecnologia",
+        "phone": null,
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-10-29T15:59:40.437167Z",
+    "updated_at": "2026-10-29T15:59:40.683575Z"
+  },
+  {
+    "opportunity_id": "opp_20261029155940_004",
+    "company_name": "Transportes Saferbo S.A.",
+    "website": "https://www.saferbo.com",
+    "country": "Colombia",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Servicios Financieros / Logística",
+      "size_employees": 320,
+      "annual_revenue_range": "8M - 20M USD",
+      "current_stack": [
+        "Windows Server 2016",
+        "PostgreSQL / SQL Server desnormalizado",
+        "Archivo físico en bodegas"
+      ],
+      "pain_points": [
+        "Pérdida de trazabilidad en expedientes y contratos físicos",
+        "Duplicidad recurrente de clientes en la base de datos operativa",
+        "Servidores locales sin respaldo en nube ni plan de recuperación ante desastres"
+      ],
+      "fit_score": 88,
+      "icp_reasoning": "Gran ajuste para DocumentTrack para digitalización y posterior migración cloud segura."
+    },
+    "contacts": [
+      {
+        "name": "Líder de Tecnología",
+        "role": "Director de TI & Transformación Digital",
+        "email": null,
+        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=saferbo.com%20tecnologia",
+        "phone": null,
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-10-29T15:59:40.725054Z",
+    "updated_at": "2026-10-29T15:59:40.734294Z"
+  },
+  {
+    "opportunity_id": "opp_20261029155940_005",
+    "company_name": "TCC Logística S.A.S.",
+    "website": "https://www.tcc.com.co",
+    "country": "Colombia",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Servicios Financieros / Logística",
+      "size_employees": 320,
+      "annual_revenue_range": "8M - 20M USD",
+      "current_stack": [
+        "Windows Server 2016",
+        "PostgreSQL / SQL Server desnormalizado",
+        "Archivo físico en bodegas"
+      ],
+      "pain_points": [
+        "Pérdida de trazabilidad en expedientes y contratos físicos",
+        "Duplicidad recurrente de clientes en la base de datos operativa",
+        "Servidores locales sin respaldo en nube ni plan de recuperación ante desastres"
+      ],
+      "fit_score": 88,
+      "icp_reasoning": "Gran ajuste para DocumentTrack para digitalización y posterior migración cloud segura."
+    },
+    "contacts": [
+      {
+        "name": "Líder de Tecnología",
+        "role": "Director de TI & Transformación Digital",
+        "email": null,
+        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=tcc.com.co%20tecnologia",
+        "phone": null,
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-10-29T15:59:40.747194Z",
+    "updated_at": "2026-10-29T15:59:40.754087Z"
+  },
+  {
+    "opportunity_id": "opp_20261029155940_006",
+    "company_name": "Transportes Interandinos S.A.",
+    "website": null,
+    "country": "Colombia",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Comercio Mayorista / Distribución y Servicios PyME",
+      "size_employees": 55,
+      "annual_revenue_range": "1.5M - 5M USD",
+      "current_stack": [
+        "Computadores Locales en Red",
+        "Software Contable (Siigo / World Office / Excel)",
+        "Archivo físico en bodegas y archivadores"
+      ],
+      "pain_points": [
+        "Acumulación masiva de remisiones, facturas físicas y carpetas en estanterías de bodega",
+        "Datos de clientes y proveedores dispersos en múltiples hojas de Excel no sincronizadas",
+        "Computadores locales con riesgo de pérdida total de datos por falta de respaldo automatizado en la nube"
+      ],
+      "fit_score": 93,
+      "icp_reasoning": "Ajuste óptimo para DocumentTrack (digitalización con IA y búsqueda inmediata de remisiones) y Data Hygiene (limpieza de Excels)."
+    },
+    "contacts": [
+      {
+        "name": "Gerente General / Propietario",
+        "role": "Representante Legal / Gerente General",
+        "email": null,
+        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=Transportes Interandinos S.A.%20gerente",
+        "phone": "+57 (PBX / WhatsApp Comercial)",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-10-29T15:59:40.766938Z",
+    "updated_at": "2026-10-29T15:59:40.773233Z"
+  },
+  {
+    "opportunity_id": "opp_20261029155940_007",
+    "company_name": "Transprensa Distribución y Logística",
+    "website": null,
+    "country": "Colombia",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Comercio Mayorista / Distribución y Servicios PyME",
+      "size_employees": 55,
+      "annual_revenue_range": "1.5M - 5M USD",
+      "current_stack": [
+        "Computadores Locales en Red",
+        "Software Contable (Siigo / World Office / Excel)",
+        "Archivo físico en bodegas y archivadores"
+      ],
+      "pain_points": [
+        "Acumulación masiva de remisiones, facturas físicas y carpetas en estanterías de bodega",
+        "Datos de clientes y proveedores dispersos en múltiples hojas de Excel no sincronizadas",
+        "Computadores locales con riesgo de pérdida total de datos por falta de respaldo automatizado en la nube"
+      ],
+      "fit_score": 93,
+      "icp_reasoning": "Ajuste óptimo para DocumentTrack (digitalización con IA y búsqueda inmediata de remisiones) y Data Hygiene (limpieza de Excels)."
+    },
+    "contacts": [
+      {
+        "name": "Gerente General / Propietario",
+        "role": "Representante Legal / Gerente General",
+        "email": null,
+        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=Transprensa Distribución y Logística%20gerente",
+        "phone": "+57 (PBX / WhatsApp Comercial)",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-10-29T15:59:40.786495Z",
+    "updated_at": "2026-10-29T15:59:40.795102Z"
   }
 ]
