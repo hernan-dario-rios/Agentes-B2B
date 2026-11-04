@@ -33,6 +33,8 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - DEBUG=${DEBUG:-False}
       - CORS_ORIGINS=${CORS_ORIGINS:-["*"]}
+    volumes:
+      - ./backend/app/knowledge:/app/app/knowledge
     ports:
       - "8000:8000"
     depends_on:

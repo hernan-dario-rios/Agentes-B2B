@@ -45,9 +45,19 @@ import {
   PhoneCall
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+// Detección dinámica y automática de la URL del Backend (AWS EC2 o Localhost)
+const getApiBase = () => {
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    const host = window.location.hostname;
+    const protocol = window.location.protocol || "http:";
+    // Siempre conecta al puerto 8000 del mismo host desde el que se abrió la web
+    return `${protocol}//${host}:8000/api/v1`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+};
 
 export default function SalesCommandCenter() {
+  const API_BASE = getApiBase();
   const [activeTab, setActiveTab] = useState("inbox"); // "inbox" | "kanban" | "catalog"
   const [pendingGates, setPendingGates] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
@@ -464,9 +474,9 @@ export default function SalesCommandCenter() {
   const [currentEditingSummary, setCurrentEditingSummary] = useState("");
 
   const [tierLabels, setTierLabels] = useState({
-    doc_starter: "Tier Starter (15 usuarios)",
-    doc_enterprise: "Tier Enterprise (100 usuarios)",
-    doc_custom: "Tier Corporate Custom (500+ usuarios)",
+    doc_starter: "Tier Starter (2 usuarios)",
+    doc_enterprise: "Tier Enterprise (8 usuarios)",
+    doc_custom: "Tier Corporate Custom (25 usuarios)",
     data_audit: "Auditoría & Plan (2 semanas)",
     data_standard: "Depuración Standard (hasta 500k registros)",
     data_enterprise: "Migración Enterprise & Refactorización",
@@ -479,15 +489,15 @@ export default function SalesCommandCenter() {
   });
 
   const [customPrices, setCustomPrices] = useState({
-    doc_starter_monthly: 490,
-    doc_starter_impl: 1800,
-    doc_enterprise_monthly: 1500,
-    doc_enterprise_impl: 4500,
-    doc_custom_monthly: 3200,
-    doc_custom_impl: 9500,
-    data_audit: 2500,
-    data_standard: 6800,
-    data_enterprise: 14500,
+    doc_starter_monthly: 32,
+    doc_starter_impl: 49,
+    doc_enterprise_monthly: 72,
+    doc_enterprise_impl: 79,
+    doc_custom_monthly: 200,
+    doc_custom_impl: 149,
+    data_audit: 1500,
+    data_standard: 3800,
+    data_enterprise: 9400,
     cloud_setup: 3800,
     cloud_managed: 1200,
     cloud_devops: 2800,
@@ -552,7 +562,7 @@ export default function SalesCommandCenter() {
       setEditCatalogModalOpen(false);
       alert("¡Guardado permanente exitoso! Los cambios fueron registrados en backend/app/knowledge/services_catalog.json y en el sistema de cotización.");
     } catch (e) {
-      alert("⚠️ Error al guardar: No se pudo conectar con el Backend (http://localhost:8000).\n\nPara que los cambios se guarden de forma permanente en el archivo services_catalog.json, asegúrate de tener la consola del backend ejecutándose con 'python main.py'.");
+      alert(`⚠️ Error al guardar: No se pudo conectar con el Backend (${API_BASE}).\n\nDetalle: ${e.message}\n\nAsegúrate de que el backend FastAPI esté ejecutándose en el puerto 8000.`);
     } finally {
       setPricesSaving(false);
     }
@@ -869,7 +879,7 @@ export default function SalesCommandCenter() {
             <div className="flex items-center space-x-2 text-xs">
               <span className={`w-2.5 h-2.5 rounded-full ${apiConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`}></span>
               <span className="text-slate-600 font-medium">
-                {apiConnected ? "Backend LangGraph Conectado (Port 8000)" : "Modo Interactivo Local"}
+                {apiConnected ? `Backend Conectado (${API_BASE.replace('/api/v1', '')})` : "Modo Interactivo Local"}
               </span>
             </div>
 
