@@ -22,6 +22,15 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+
+@app.on_event("startup")
+async def on_startup():
+    logger.info("================================================")
+    logger.info("🚀 INNOVAIT Backend iniciado exitosamente!")
+    logger.info(f"Ambiente: {settings.ENVIRONMENT}")
+    logger.info(f"Prefijo API: {settings.API_V1_PREFIX}")
+    logger.info("================================================")
+
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,

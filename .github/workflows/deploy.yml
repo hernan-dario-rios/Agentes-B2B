@@ -111,14 +111,15 @@ jobs:
             sudo chmod -R 777 ~/innovait-app/backend/app/knowledge || true
             echo "🐳 Desplegando contenedores Docker..."
             sudo docker compose down || true
+            sudo fuser -k 8000/tcp || true
             sudo docker compose up -d --build
             sudo chmod -R 777 ~/innovait-app/backend/app/knowledge || true
 
             echo "🔍 Verificando estado de contenedores en EC2..."
-            sudo docker compose ps
+            sudo docker compose ps -a
             echo "📋 Inspeccionando logs iniciales del backend:"
-            sleep 4
-            sudo docker compose logs --tail=40 backend
+            sleep 5
+            sudo docker compose logs --tail=50 backend
             echo "📋 Inspeccionando logs iniciales del frontend:"
             sudo docker compose logs --tail=40 frontend
 

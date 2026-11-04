@@ -30,6 +30,7 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - DEBUG=${DEBUG:-False}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - PYTHONUNBUFFERED=1
     volumes:
       - ./backend/app/knowledge:/app/app/knowledge
     ports:
