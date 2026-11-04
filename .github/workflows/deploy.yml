@@ -114,6 +114,12 @@ jobs:
             sudo docker compose up -d --build
             sudo chmod -R 777 ~/innovait-app/backend/app/knowledge || true
 
+            echo "🔍 Verificando estado de contenedores en EC2..."
+            sudo docker compose ps
+            sleep 3
+            echo "📋 Estado inicial de logs del backend:"
+            sudo docker compose logs --tail=25 backend
+
             # 7. Limpiar capas e imágenes antiguas para ahorrar espacio en disco (Free Tier)
             echo "🧹 Limpiando imágenes en desuso..."
             sudo docker image prune -f
