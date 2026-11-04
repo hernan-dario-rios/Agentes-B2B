@@ -107,10 +107,12 @@ jobs:
             # Limpiar posibles espacios accidentales al inicio de los valores
             sed -i 's/=" */="/g' .env
 
-            # 6. Reconstruir y levantar contenedores Docker
+            # 6. Permisos de lectura/escritura y despliegue de contenedores Docker
+            sudo chmod -R 777 ~/innovait-app/backend/app/knowledge || true
             echo "🐳 Desplegando contenedores Docker..."
             sudo docker compose down || true
             sudo docker compose up -d --build
+            sudo chmod -R 777 ~/innovait-app/backend/app/knowledge || true
 
             # 7. Limpiar capas e imágenes antiguas para ahorrar espacio en disco (Free Tier)
             echo "🧹 Limpiando imágenes en desuso..."

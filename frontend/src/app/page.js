@@ -544,7 +544,8 @@ export default function SalesCommandCenter() {
         });
 
         if (!res.ok) {
-          throw new Error(`El backend devolvió código de error ${res.status}`);
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `El backend devolvió código de error ${res.status}`);
         }
         setApiConnected(true);
       }
