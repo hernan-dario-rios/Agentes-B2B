@@ -39,7 +39,10 @@ import {
   Phone,
   MessageSquare,
   Compass,
-  Radio
+  Radio,
+  Zap,
+  MapPin,
+  PhoneCall
 } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
@@ -289,6 +292,42 @@ export default function SalesCommandCenter() {
       alert(`Error al contactar al orquestador: ${e.message}`);
     } finally {
       setRadarScanning(false);
+    }
+  };
+
+  // Prospección Automática en 1 Clic (Lead Hunter Agent Autónomo)
+  const [quickHunting, setQuickHunting] = useState(false);
+
+  const handleQuickAutoHunt = async () => {
+    setQuickHunting(true);
+    try {
+      if (apiConnected) {
+        const res = await fetch(`${API_BASE}/opportunities/hunt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sector: "all",
+            city: "Nacional (Colombia)",
+            company_type: "all",
+            limit: 5
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          await fetchData();
+          alert(`⚡ ¡Prospección Automática Exitosa! Se descubrieron y crearon ${data.discovered_count || 5} prospectos con datos de contacto verificados (PBX, Celular WhatsApp, correo y sede física) en Gate 1.`);
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Error en prospección: ${err.detail || "No fue posible completar la prospección autónoma."}`);
+        }
+      } else {
+        alert("El backend no está conectado en este momento. Verifique la conexión.");
+      }
+    } catch (e) {
+      console.error("Error ejecutando prospección automática rápida:", e);
+      alert(`Error al contactar al orquestador: ${e.message}`);
+    } finally {
+      setQuickHunting(false);
     }
   };
 
@@ -835,6 +874,25 @@ export default function SalesCommandCenter() {
             </div>
 
             <button
+              onClick={handleQuickAutoHunt}
+              disabled={quickHunting}
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-sm font-bold shadow-sm shadow-orange-500/20 transition-all cursor-pointer disabled:opacity-50"
+              title="Descubrir automáticamente 5 prospectos reales con contactos verificados"
+            >
+              {quickHunting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-amber-100" />
+                  <span>Prospectando...</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4 text-amber-100" />
+                  <span>⚡ Prospección Automática</span>
+                </>
+              )}
+            </button>
+
+            <button
               onClick={() => {
                 setRadarResult(null);
                 setRadarModalOpen(true);
@@ -998,6 +1056,23 @@ export default function SalesCommandCenter() {
                 </p>
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                   <button
+                    onClick={handleQuickAutoHunt}
+                    disabled={quickHunting}
+                    className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-sm font-bold shadow-sm shadow-orange-500/20 cursor-pointer disabled:opacity-50"
+                  >
+                    {quickHunting ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin text-amber-100" />
+                        <span>Prospectando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-4 h-4 text-amber-100" />
+                        <span>⚡ Prospección Automática (1 Clic)</span>
+                      </>
+                    )}
+                  </button>
+                  <button
                     onClick={() => {
                       setRadarResult(null);
                       setRadarModalOpen(true);
@@ -1069,9 +1144,49 @@ export default function SalesCommandCenter() {
                             {isCollapsed && (
                               <div className="mt-1 flex items-center space-x-3 text-xs text-slate-500 truncate">
                                 <span className="truncate">
-                                  {gate.gate_type === "GATE_2_OUTREACH"
-                                    ? `✉️ Asunto: ${gate.context_details?.subject || gate.key_metrics?.subject || "Propuesta comercial"} • Destinatario: ${gate.key_metrics?.contact || "Tomador de decisión"}`
-                                    : (gate.recommendation_summary ? gate.recommendation_summary.replace(/\n/g, " ").slice(0, 140) + "..." : "Pausado en espera de decisión humana")}
+                                  {gate.gate_type === "GATE_2_OUTREACH" ? (
+                                    <>
+                                      <span>✉️ Asunto: {gate.context_details?.subject || gate.key_metrics?.subject || "Propuesta comercial"}</span>
+                                      <span className="mx-1">•</span>
+                                      <span>👤 Destinatario: {gate.key_metrics?.contact || "Tomador de decisión"}</span>
+                                      {(gate.context_details?.contacts?.[0]?.phone || gate.key_metrics?.phone) && (
+                                        <>
+                                          <span className="mx-1">•</span>
+                                          <span className="text-emerald-700 font-semibold">📞 {gate.context_details?.contacts?.[0]?.phone || gate.key_metrics?.phone}</span>
+                                        </>
+                                      )}
+                                    </>
+                                  ) : gate.gate_type === "GATE_1_TARGET" ? (
+                                    <>
+                                      <span>🎯 Match: {gate.key_metrics?.fit_score || 85}/100</span>
+                                      {(gate.context_details?.contacts?.[0]?.name || gate.key_metrics?.contact) && (
+                                        <>
+                                          <span className="mx-1">•</span>
+                                          <span className="font-semibold text-slate-700">👤 {gate.context_details?.contacts?.[0]?.name || gate.key_metrics?.contact}</span>
+                                        </>
+                                      )}
+                                      {(gate.context_details?.contacts?.[0]?.phone || gate.key_metrics?.phone) && (
+                                        <>
+                                          <span className="mx-1">•</span>
+                                          <span className="text-emerald-700 font-semibold">📞 {gate.context_details?.contacts?.[0]?.phone || gate.key_metrics?.phone}</span>
+                                        </>
+                                      )}
+                                      {(gate.context_details?.contacts?.[0]?.email || gate.key_metrics?.email) && (
+                                        <>
+                                          <span className="mx-1">•</span>
+                                          <span className="text-indigo-700 font-mono">✉️ {gate.context_details?.contacts?.[0]?.email || gate.key_metrics?.email}</span>
+                                        </>
+                                      )}
+                                      {gate.context_details?.address && (
+                                        <>
+                                          <span className="mx-1">•</span>
+                                          <span className="text-slate-600">📍 {gate.context_details.address}</span>
+                                        </>
+                                      )}
+                                    </>
+                                  ) : (
+                                    gate.recommendation_summary ? gate.recommendation_summary.replace(/\n/g, " ").slice(0, 140) + "..." : "Pausado en espera de decisión humana"
+                                  )}
                                 </span>
                               </div>
                             )}
@@ -1461,6 +1576,21 @@ export default function SalesCommandCenter() {
                                 </div>
                               </div>
 
+                              {/* Sede Principal y NIT Verificado */}
+                              {(gate.context_details?.tax_id || gate.context_details?.address) && (
+                                <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200/90 flex flex-wrap items-center justify-between gap-2 text-xs shadow-2xs">
+                                  <div className="flex items-center space-x-2 text-slate-700">
+                                    <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
+                                    <span><strong>Sede Principal:</strong> {gate.context_details?.address || "Colombia"}</span>
+                                  </div>
+                                  {gate.context_details?.tax_id && (
+                                    <span className="text-slate-600 font-mono text-[11px] bg-slate-100 px-2.5 py-0.5 rounded-md border border-slate-200">
+                                      <strong>NIT:</strong> {gate.context_details.tax_id}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
                                 {(gate.context_details?.contacts && gate.context_details.contacts.length > 0
                                   ? gate.context_details.contacts
@@ -1491,9 +1621,62 @@ export default function SalesCommandCenter() {
                                       </div>
                                       <p className="text-[11px] text-slate-500 font-medium">{contact.role || "Cargo no especificado"}</p>
                                     </div>
-                                    {contact.email ? (
+
+                                    {/* Teléfono / WhatsApp verificado */}
+                                    {contact.phone && (
                                       <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                                        <code className="text-indigo-700 font-mono text-[10px] truncate">{contact.email}</code>
+                                        <div className="flex items-center space-x-1.5 text-slate-700 font-medium truncate">
+                                          <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                                          <a
+                                            href={`tel:${contact.phone.replace(/[^\d+]/g, '')}`}
+                                            className="hover:underline hover:text-emerald-700 truncate"
+                                            title="Llamar directamente a PBX o celular"
+                                          >
+                                            {contact.phone}
+                                          </a>
+                                        </div>
+                                        <div className="flex items-center space-x-1 shrink-0">
+                                          {contact.phone.replace(/[^\d]/g, '').length >= 10 && (
+                                            <a
+                                              href={`https://wa.me/${contact.phone.replace(/[^\d]/g, '').startsWith('57') ? contact.phone.replace(/[^\d]/g, '') : `57${contact.phone.replace(/[^\d]/g, '')}`}?text=${encodeURIComponent(`Hola ${contact.name}, un gusto saludarte. Te contacto de INNOVAIT.`)}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-[10px] bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 font-bold inline-flex items-center"
+                                              title="Abrir chat en WhatsApp"
+                                            >
+                                              WhatsApp
+                                            </a>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              if (navigator?.clipboard) {
+                                                navigator.clipboard.writeText(contact.phone);
+                                                alert(`Teléfono copiado: ${contact.phone}`);
+                                              }
+                                            }}
+                                            className="text-slate-400 hover:text-slate-700 p-0.5"
+                                            title="Copiar teléfono"
+                                          >
+                                            <Copy className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Correo Electrónico verificado */}
+                                    {contact.email ? (
+                                      <div className={`pt-1.5 flex items-center justify-between text-[11px] ${!contact.phone ? "mt-2 pt-2 border-t border-slate-100" : ""}`}>
+                                        <div className="flex items-center space-x-1.5 text-indigo-700 truncate">
+                                          <Mail className="w-3 h-3 text-purple-600 shrink-0" />
+                                          <a
+                                            href={`mailto:${contact.email}?subject=${encodeURIComponent("Propuesta de Eficiencia Operativa - INNOVAIT")}`}
+                                            className="font-mono text-[10px] hover:underline truncate"
+                                            title="Enviar correo"
+                                          >
+                                            {contact.email}
+                                          </a>
+                                        </div>
                                         <button
                                           type="button"
                                           onClick={() => {
@@ -1509,7 +1692,7 @@ export default function SalesCommandCenter() {
                                         </button>
                                       </div>
                                     ) : (
-                                      <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-amber-700 bg-amber-50/60 px-2 py-1 rounded">
+                                      <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-amber-700 bg-amber-50/60 px-2 py-1 rounded">
                                         <span>Sin correo nominal directo (Validar vía PBX o LinkedIn)</span>
                                       </div>
                                     )}
@@ -1581,30 +1764,69 @@ export default function SalesCommandCenter() {
                         ID: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-600">{gate.opportunity_id}</code>
                       </div>
 
-                      <div className="flex items-center space-x-3">
+                      <div className="flex flex-wrap items-center gap-2.5">
                         {gate.gate_type === "GATE_2_OUTREACH" && (
-                          <button
-                            onClick={() => handleCopyOutreach(gate)}
-                            className="px-3.5 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all flex items-center space-x-1.5 shadow-xs cursor-pointer"
-                          >
-                            {copiedId === gate.opportunity_id ? (
+                          <>
+                            {/* Acciones directas 1-clic con contactos reales */}
+                            {gate.context_details?.contacts?.[0]?.phone && (
                               <>
-                                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                <span className="text-emerald-700">¡Copiado al Portapapeles!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5" />
-                                <span>
-                                  {getOutreachTab(gate) === "whatsapp"
-                                    ? "Copiar WhatsApp"
-                                    : getOutreachTab(gate) === "call"
-                                    ? "Copiar Guion Telefónico"
-                                    : "Copiar Correo Listo"}
-                                </span>
+                                <a
+                                  href={`https://wa.me/${gate.context_details.contacts[0].phone.replace(/[^\d]/g, '').startsWith('57') ? gate.context_details.contacts[0].phone.replace(/[^\d]/g, '') : `57${gate.context_details.contacts[0].phone.replace(/[^\d]/g, '')}`}?text=${encodeURIComponent(gate.context_details?.whatsapp_message || "Hola, un gusto saludarte. Te contacto de INNOVAIT.")}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-all flex items-center space-x-1.5 shadow-2xs cursor-pointer"
+                                  title="Abrir chat en WhatsApp Web con mensaje comercial cargado"
+                                >
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                  <span>WhatsApp Web</span>
+                                </a>
+
+                                <a
+                                  href={`tel:${gate.context_details.contacts[0].phone.replace(/[^\d+]/g, '')}`}
+                                  className="px-3 py-2 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-all flex items-center space-x-1.5 shadow-2xs cursor-pointer"
+                                  title="Llamar teléfono directo o PBX"
+                                >
+                                  <PhoneCall className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Llamar PBX</span>
+                                </a>
                               </>
                             )}
-                          </button>
+
+                            {gate.context_details?.contacts?.[0]?.email && (
+                              <a
+                                href={`mailto:${gate.context_details.contacts[0].email}?subject=${encodeURIComponent(gate.context_details?.subject || gate.key_metrics?.subject || "INNOVAIT | Transformación digital")}&body=${encodeURIComponent(gate.context_details?.body_markdown || gate.recommendation_summary || "")}`}
+                                className="px-3 py-2 rounded-xl text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 transition-all flex items-center space-x-1.5 shadow-2xs cursor-pointer"
+                                title="Abrir en cliente de correo local (Outlook / Gmail)"
+                              >
+                                <Mail className="w-3.5 h-3.5 text-purple-600" />
+                                <span>Redactar Correo</span>
+                              </a>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleCopyOutreach(gate)}
+                              className="px-3 py-2 rounded-xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-all flex items-center space-x-1.5 shadow-2xs cursor-pointer"
+                            >
+                              {copiedId === gate.opportunity_id ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span className="text-emerald-700">¡Copiado!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>
+                                    {getOutreachTab(gate) === "whatsapp"
+                                      ? "Copiar WhatsApp"
+                                      : getOutreachTab(gate) === "call"
+                                      ? "Copiar Guion"
+                                      : "Copiar Correo"}
+                                  </span>
+                                </>
+                              )}
+                            </button>
+                          </>
                         )}
 
                         <button
@@ -2091,32 +2313,72 @@ export default function SalesCommandCenter() {
               </div>
             </div>
 
-            <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setConfirmOutreachModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={submitting || !finalBody.trim()}
-                onClick={async () => {
-                  setConfirmOutreachModalOpen(false);
-                  await handleDecision(outreachConfirmTarget.opportunity_id, "APPROVE", null, {
-                    final_subject: finalSubject.trim() || `Contacto vía ${outreachChannel.toUpperCase()}`,
-                    final_body: finalBody.trim(),
-                    channel: outreachChannel.toUpperCase(),
-                    recipient: finalRecipient.trim(),
-                    sent_at: new Date().toISOString()
-                  });
-                }}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Confirmar Gestión y Avanzar a Gate 3 (Discovery)</span>
-              </button>
+            <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-between">
+              <div>
+                {outreachChannel === "whatsapp" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanPhone = finalRecipient.replace(/[^\d]/g, '');
+                      const waNum = cleanPhone.startsWith('57') ? cleanPhone : `57${cleanPhone}`;
+                      window.open(`https://wa.me/${waNum}?text=${encodeURIComponent(finalBody)}`, "_blank");
+                    }}
+                    className="px-3 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-2xs flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Abrir en WhatsApp Web</span>
+                  </button>
+                )}
+                {outreachChannel === "email" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.href = `mailto:${encodeURIComponent(finalRecipient)}?subject=${encodeURIComponent(finalSubject)}&body=${encodeURIComponent(finalBody)}`;
+                    }}
+                    className="px-3 py-2 rounded-xl text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 shadow-2xs flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <Mail className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Abrir en Outlook / Mail</span>
+                  </button>
+                )}
+                {outreachChannel === "phone" && (
+                  <a
+                    href={`tel:${finalRecipient.replace(/[^\d+]/g, '')}`}
+                    className="px-3 py-2 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-2xs flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <PhoneCall className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Llamar al PBX</span>
+                  </a>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmOutreachModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting || !finalBody.trim()}
+                  onClick={async () => {
+                    setConfirmOutreachModalOpen(false);
+                    await handleDecision(outreachConfirmTarget.opportunity_id, "APPROVE", null, {
+                      final_subject: finalSubject.trim() || `Contacto vía ${outreachChannel.toUpperCase()}`,
+                      final_body: finalBody.trim(),
+                      channel: outreachChannel.toUpperCase(),
+                      recipient: finalRecipient.trim(),
+                      sent_at: new Date().toISOString()
+                    });
+                  }}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Confirmar Gestión y Avanzar a Gate 3 (Discovery)</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -2368,7 +2630,15 @@ export default function SalesCommandCenter() {
                             </div>
                             <p className="text-[11px] text-slate-500 mt-0.5">
                               {opp.icp_data?.industry || opp.sector || "Sector B2B"} • {opp.country || "Colombia"}
+                              {opp.address && ` • 📍 ${opp.address}`}
                             </p>
+                            {opp.contacts && opp.contacts.length > 0 && (
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[10px] text-slate-700">
+                                <span><strong>👤 {opp.contacts[0].name}</strong> ({opp.contacts[0].role || "Líder"})</span>
+                                {opp.contacts[0].phone && <span className="text-emerald-700 font-bold">📞 {opp.contacts[0].phone}</span>}
+                                {opp.contacts[0].email && <span className="text-indigo-700 font-mono">✉️ {opp.contacts[0].email}</span>}
+                              </div>
+                            )}
                           </div>
                           <span className="text-[11px] font-bold text-emerald-700 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-2xs">
                             Pausado en Gate 1

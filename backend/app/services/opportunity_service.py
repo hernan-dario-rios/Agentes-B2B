@@ -60,7 +60,12 @@ class OpportunityService:
         self,
         company_name: str,
         website: Optional[str] = None,
-        country: str = "Colombia"
+        country: str = "Colombia",
+        tax_id: Optional[str] = None,
+        address: Optional[str] = None,
+        initial_contacts: Optional[List[ContactPerson]] = None,
+        initial_icp: Optional[ICPData] = None,
+        target_services: Optional[List[ServiceCategory]] = None
     ) -> OpportunityContext:
         opp_id = f"opp_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{len(self.opportunities)+1:03d}"
         opp = OpportunityContext(
@@ -68,9 +73,16 @@ class OpportunityService:
             company_name=company_name,
             website=website,
             country=country,
+            tax_id=tax_id,
+            address=address,
+            target_services=target_services or [],
             stage=PipelineStage.LEAD_DISCOVERED,
-            current_gate=GateType.GATE_1_TARGET
+            current_gate=GateType.GATE_1_TARGET,
+            contacts=initial_contacts or []
         )
+        if initial_icp:
+            opp.icp_data = initial_icp
+
         self.opportunities[opp_id] = opp
 
         # Iniciar ejecución inicial del grafo en LangGraph (thread_id = opp_id)
@@ -124,7 +136,14 @@ class OpportunityService:
                 context_details = {}
 
                 contacts_list = [
-                    {"name": c.name, "role": c.role, "email": c.email, "linkedin_url": c.linkedin_url}
+                    {
+                        "name": c.name,
+                        "role": c.role,
+                        "email": c.email,
+                        "phone": c.phone,
+                        "linkedin_url": c.linkedin_url,
+                        "status": c.status
+                    }
                     for c in opp.contacts
                 ] if opp.contacts else []
 
@@ -187,12 +206,24 @@ class OpportunityService:
                 if opp.current_gate == GateType.GATE_1_TARGET:
                     headline = f"Validación de Target: {opp.company_name}"
                     agent_name = "Scraper & Enricher Agent"
-                    recom = f"Ajuste ICP {opp.icp_data.fit_score}/100. Industria: {opp.icp_data.industry}."
-                    metrics = {"fit_score": opp.icp_data.fit_score, "stack": opp.icp_data.current_stack}
+                    first_c = contacts_list[0] if contacts_list else None
+                    contact_summary = f" • Contacto: {first_c['name']} ({first_c['role']})" if first_c else ""
+                    recom = f"Ajuste ICP {opp.icp_data.fit_score}/100. Industria: {opp.icp_data.industry}.{contact_summary}"
+                    metrics = {
+                        "fit_score": opp.icp_data.fit_score,
+                        "stack": opp.icp_data.current_stack,
+                        "contact": f"{first_c['name']} ({first_c['role']})" if first_c else None,
+                        "phone": first_c.get("phone") if first_c else None,
+                        "email": first_c.get("email") if first_c else None,
+                        "address": opp.address,
+                        "tax_id": opp.tax_id
+                    }
                     context_details = {
                         "pain_points": pain_points_list,
                         "stack": stack_list,
                         "contacts": contacts_list,
+                        "address": opp.address,
+                        "tax_id": opp.tax_id,
                         "icp_reasoning": opp.icp_data.icp_reasoning if opp.icp_data else ""
                     }
                 elif opp.current_gate == GateType.GATE_2_OUTREACH:
@@ -214,10 +245,14 @@ class OpportunityService:
 
                     recom = opp.outreach.body_markdown if (opp.outreach and opp.outreach.body_markdown) else "Borrador de comunicación corporativa listo."
                     channel_label = opp.outreach.channel if (opp.outreach and opp.outreach.channel) else ("WHATSAPP / LLAMADA" if not opp.website else "EMAIL")
+                    first_c = contacts_list[0] if contacts_list else {}
                     metrics = {
                         "channel": channel_label,
                         "subject": opp.outreach.subject if opp.outreach else "Sin asunto",
-                        "contact": f"{contacts_list[0]['name']} ({contacts_list[0]['role']})" if contacts_list else "Contacto Principal"
+                        "contact": f"{first_c.get('name', 'Contacto')} ({first_c.get('role', 'Principal')})",
+                        "phone": first_c.get("phone"),
+                        "email": first_c.get("email"),
+                        "address": opp.address
                     }
                     context_details = {
                         "subject": opp.outreach.subject if opp.outreach else "",
@@ -226,6 +261,8 @@ class OpportunityService:
                         "call_script": getattr(opp.outreach, "call_script", None),
                         "channel": channel_label,
                         "contacts": contacts_list,
+                        "address": opp.address,
+                        "tax_id": opp.tax_id,
                         "pain_points": pain_points_list,
                         "is_sme": not bool(opp.website)
                     }

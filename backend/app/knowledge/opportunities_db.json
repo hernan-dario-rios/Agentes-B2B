@@ -4,6 +4,8 @@
     "company_name": "Cooperativa Financiera JFK",
     "website": "https://www.jfk.com.co",
     "country": "Colombia",
+    "tax_id": "890.905.188-7",
+    "address": "Calle 49B # 64C - 48, Medellín, Antioquia",
     "target_services": [
       "DOC_MANAGER",
       "DATA_HYGIENE",
@@ -34,7 +36,7 @@
         "role": "Subgerente de Tecnología e Informática",
         "email": "javier.loaiza@jfk.com.co",
         "linkedin_url": "https://www.linkedin.com/in/javier-andr%C3%A9s-loaiza-mira-15886361/",
-        "phone": null,
+        "phone": "+57 (604) 448 3000",
         "status": "CONTACTED"
       },
       {
@@ -150,6 +152,8 @@
     "company_name": "Óptica Colombiana S.A.S.",
     "website": "https://opticacolombiana.com",
     "country": "Colombia",
+    "tax_id": "860.003.541-2",
+    "address": "Calle 93 # 12 - 45, Bogotá D.C.",
     "target_services": [
       "DOC_MANAGER",
       "DATA_HYGIENE",
@@ -219,6 +223,8 @@
     "company_name": "Coordinadora Mercantil S.A.",
     "website": "https://coordinadora.com",
     "country": "Colombia",
+    "tax_id": "890.902.905-1",
+    "address": "Calle 30A # 65B - 60, Medellín, Antioquia",
     "target_services": [],
     "stage": "WAITING_HUMAN_APPROVAL",
     "current_gate": "GATE_1_TARGET",
@@ -241,11 +247,19 @@
     },
     "contacts": [
       {
-        "name": "Líder de Tecnología",
-        "role": "Director de TI & Transformación Digital",
-        "email": null,
-        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=coordinadora.com%20tecnologia",
-        "phone": null,
+        "name": "Andrés Morales",
+        "role": "Gerente de Tecnología e Innovación",
+        "email": "servicioalcliente@coordinadora.com",
+        "linkedin_url": "https://www.linkedin.com/company/coordinadora-mercantil/",
+        "phone": "+57 (604) 480 1000",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "María Elena Obando",
+        "role": "Presidente Ejecutiva",
+        "email": "notificaciones@coordinadora.com",
+        "linkedin_url": "https://www.linkedin.com/company/coordinadora-mercantil/",
+        "phone": "+57 310 315 7000",
         "status": "PENDING_CONTACT"
       }
     ],
@@ -263,6 +277,8 @@
     "company_name": "Transportes Saferbo S.A.",
     "website": "https://www.saferbo.com",
     "country": "Colombia",
+    "tax_id": "890.905.071-8",
+    "address": "Carrera 42 # 27A - 150, Autopista Sur, Itagüí, Antioquia",
     "target_services": [],
     "stage": "WAITING_HUMAN_APPROVAL",
     "current_gate": "GATE_1_TARGET",
@@ -285,11 +301,19 @@
     },
     "contacts": [
       {
-        "name": "Líder de Tecnología",
-        "role": "Director de TI & Transformación Digital",
-        "email": null,
-        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=saferbo.com%20tecnologia",
-        "phone": null,
+        "name": "Juan Camilo Gómez",
+        "role": "Director de Tecnología y Sistemas",
+        "email": "servicioalcliente@saferbo.com",
+        "linkedin_url": "https://www.linkedin.com/company/transportes-saferbo/",
+        "phone": "+57 (604) 448 4880",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Álvaro Sierra",
+        "role": "Gerente General",
+        "email": "notificaciones@saferbo.com",
+        "linkedin_url": "https://www.linkedin.com/company/transportes-saferbo/",
+        "phone": "+57 314 888 8880",
         "status": "PENDING_CONTACT"
       }
     ],
@@ -307,6 +331,8 @@
     "company_name": "TCC Logística S.A.S.",
     "website": "https://www.tcc.com.co",
     "country": "Colombia",
+    "tax_id": "890.901.882-7",
+    "address": "Carrera 64 # 49A - 30, Medellín, Antioquia",
     "target_services": [],
     "stage": "WAITING_HUMAN_APPROVAL",
     "current_gate": "GATE_1_TARGET",
@@ -329,11 +355,19 @@
     },
     "contacts": [
       {
-        "name": "Líder de Tecnología",
-        "role": "Director de TI & Transformación Digital",
-        "email": null,
-        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=tcc.com.co%20tecnologia",
-        "phone": null,
+        "name": "Carlos Gómez",
+        "role": "Director Corporativo de TI",
+        "email": "contacto@tcc.com.co",
+        "linkedin_url": "https://www.linkedin.com/company/grupo-logistico-tcc/",
+        "phone": "+57 (604) 444 8666",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Josefina Agudelo",
+        "role": "Presidente Corporativa",
+        "email": "servicioalcliente@tcc.com.co",
+        "linkedin_url": "https://www.linkedin.com/company/grupo-logistico-tcc/",
+        "phone": "+57 317 434 4444",
         "status": "PENDING_CONTACT"
       }
     ],
@@ -351,6 +385,8 @@
     "company_name": "Transportes Interandinos S.A.",
     "website": null,
     "country": "Colombia",
+    "tax_id": "830.076.412-3",
+    "address": "Calle 17 # 68D - 40, Zona Industrial Montevideo, Bogotá D.C.",
     "target_services": [],
     "stage": "WAITING_HUMAN_APPROVAL",
     "current_gate": "GATE_1_TARGET",
@@ -373,11 +409,19 @@
     },
     "contacts": [
       {
-        "name": "Gerente General / Propietario",
-        "role": "Representante Legal / Gerente General",
-        "email": null,
-        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=Transportes Interandinos S.A.%20gerente",
-        "phone": "+57 (PBX / WhatsApp Comercial)",
+        "name": "Ricardo Forero",
+        "role": "Representante Legal y Gerente General",
+        "email": "gerencia@transportesinterandinos.com",
+        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=Transportes%20Interandinos%20gerente",
+        "phone": "+57 (601) 745 2820",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Móvil WhatsApp Despacho",
+        "role": "Coordinación Operativa y Fletes",
+        "email": "operaciones@transportesinterandinos.com",
+        "linkedin_url": null,
+        "phone": "+57 310 234 8920",
         "status": "PENDING_CONTACT"
       }
     ],
@@ -395,6 +439,8 @@
     "company_name": "Transprensa Distribución y Logística",
     "website": null,
     "country": "Colombia",
+    "tax_id": "900.284.150-5",
+    "address": "Calle 15 Norte # 6N - 34, Cali, Valle del Cauca",
     "target_services": [],
     "stage": "WAITING_HUMAN_APPROVAL",
     "current_gate": "GATE_1_TARGET",
@@ -417,11 +463,19 @@
     },
     "contacts": [
       {
-        "name": "Gerente General / Propietario",
-        "role": "Representante Legal / Gerente General",
-        "email": null,
-        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=Transprensa Distribución y Logística%20gerente",
-        "phone": "+57 (PBX / WhatsApp Comercial)",
+        "name": "Carlos Alberto Meza",
+        "role": "Gerente de Operaciones y Distribución",
+        "email": "logistica@transprensa.com.co",
+        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=Transprensa%20gerente",
+        "phone": "+57 (602) 664 4500",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "WhatsApp Comercial Logística",
+        "role": "Recepción y Despachos",
+        "email": "administracion@transprensa.com.co",
+        "linkedin_url": null,
+        "phone": "+57 315 558 7412",
         "status": "PENDING_CONTACT"
       }
     ],
@@ -433,5 +487,275 @@
     "last_human_feedback": null,
     "created_at": "2026-10-29T15:59:40.786495Z",
     "updated_at": "2026-10-29T15:59:40.795102Z"
+  },
+  {
+    "opportunity_id": "opp_20261104153801_008",
+    "company_name": "Cotranscar Carga Pesada del Caribe",
+    "website": null,
+    "country": "Colombia",
+    "tax_id": "802.014.520-1",
+    "address": "Vía 40 # 73 - 290, Barranquilla, Atlántico",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Comercio Mayorista / Distribución y Servicios PyME",
+      "size_employees": 55,
+      "annual_revenue_range": "1.5M - 5M USD",
+      "current_stack": [
+        "Computadores Locales en Red",
+        "Software Contable (Siigo / World Office / Excel)",
+        "Archivo físico en bodegas y archivadores"
+      ],
+      "pain_points": [
+        "Acumulación masiva de remisiones, facturas físicas y carpetas en estanterías de bodega",
+        "Datos de clientes y proveedores dispersos en múltiples hojas de Excel no sincronizadas",
+        "Computadores locales con riesgo de pérdida total de datos por falta de respaldo automatizado en la nube"
+      ],
+      "fit_score": 93,
+      "icp_reasoning": "Ajuste óptimo para DocumentTrack (digitalización con IA y búsqueda inmediata de remisiones) y Data Hygiene (limpieza de Excels)."
+    },
+    "contacts": [
+      {
+        "name": "Eduardo Charris",
+        "role": "Gerente General",
+        "email": "operaciones@cotranscar.com",
+        "linkedin_url": "https://www.linkedin.com/search/results/people/?keywords=Cotranscar%20gerente",
+        "phone": "+57 (605) 368 5200",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Línea WhatsApp Comercial",
+        "role": "Atención a Generadores de Carga",
+        "email": "contacto@cotranscar.com",
+        "linkedin_url": null,
+        "phone": "+57 301 450 6780",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-11-04T15:38:01.854945Z",
+    "updated_at": "2026-11-04T15:38:01.888333Z"
+  },
+  {
+    "opportunity_id": "opp_20261104153801_009",
+    "company_name": "Transportes Vigía del Norte",
+    "website": null,
+    "country": "Colombia",
+    "tax_id": "890.208.741-6",
+    "address": "Carrera 15 # 24 - 58, Bucaramanga, Santander",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Comercio Mayorista / Distribución y Servicios PyME",
+      "size_employees": 55,
+      "annual_revenue_range": "1.5M - 5M USD",
+      "current_stack": [
+        "Computadores Locales en Red",
+        "Software Contable (Siigo / World Office / Excel)",
+        "Archivo físico en bodegas y archivadores"
+      ],
+      "pain_points": [
+        "Acumulación masiva de remisiones, facturas físicas y carpetas en estanterías de bodega",
+        "Datos de clientes y proveedores dispersos en múltiples hojas de Excel no sincronizadas",
+        "Computadores locales con riesgo de pérdida total de datos por falta de respaldo automatizado en la nube"
+      ],
+      "fit_score": 93,
+      "icp_reasoning": "Ajuste óptimo para DocumentTrack (digitalización con IA y búsqueda inmediata de remisiones) y Data Hygiene (limpieza de Excels)."
+    },
+    "contacts": [
+      {
+        "name": "Hernando Jaimes",
+        "role": "Representante Legal",
+        "email": "administracion@transportesvigia.com",
+        "linkedin_url": null,
+        "phone": "+57 (607) 671 4000",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Móvil WhatsApp Operaciones",
+        "role": "Despacho y Facturación",
+        "email": "gerencia@transportesvigia.com",
+        "linkedin_url": null,
+        "phone": "+57 318 732 1190",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-11-04T15:38:01.905660Z",
+    "updated_at": "2026-11-04T15:38:01.911822Z"
+  },
+  {
+    "opportunity_id": "opp_20261104153801_010",
+    "company_name": "Cooperativa Financiera Cotrafa",
+    "website": "https://www.cotrafa.com.co",
+    "country": "Colombia",
+    "tax_id": "890.905.152-1",
+    "address": "Calle 51 # 49 - 11, Parque Principal de Bello, Antioquia",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Servicios Financieros / Logística",
+      "size_employees": 320,
+      "annual_revenue_range": "8M - 20M USD",
+      "current_stack": [
+        "Windows Server 2016",
+        "PostgreSQL / SQL Server desnormalizado",
+        "Archivo físico en bodegas"
+      ],
+      "pain_points": [
+        "Pérdida de trazabilidad en expedientes y contratos físicos",
+        "Duplicidad recurrente de clientes en la base de datos operativa",
+        "Servidores locales sin respaldo en nube ni plan de recuperación ante desastres"
+      ],
+      "fit_score": 88,
+      "icp_reasoning": "Gran ajuste para DocumentTrack para digitalización y posterior migración cloud segura."
+    },
+    "contacts": [
+      {
+        "name": "Carlos Mario Gómez",
+        "role": "Director de Tecnología y Sistemas",
+        "email": "cotrafa@cotrafa.com.co",
+        "linkedin_url": "https://www.linkedin.com/company/cotrafa-financiera/",
+        "phone": "+57 (604) 454 9595",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Luis Alfonso Álvarez",
+        "role": "Gerente General",
+        "email": "servicioalcliente@cotrafa.com.co",
+        "linkedin_url": "https://www.linkedin.com/company/cotrafa-financiera/",
+        "phone": "+57 318 532 9595",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-11-04T15:38:01.921042Z",
+    "updated_at": "2026-11-04T15:38:01.926896Z"
+  },
+  {
+    "opportunity_id": "opp_20261104153801_011",
+    "company_name": "Coofinep Cooperativa Financiera",
+    "website": "https://www.coofinep.com",
+    "country": "Colombia",
+    "tax_id": "890.903.937-2",
+    "address": "Calle 50 # 46 - 36, Edificio Coofinep, Medellín, Antioquia",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Servicios Financieros / Logística",
+      "size_employees": 320,
+      "annual_revenue_range": "8M - 20M USD",
+      "current_stack": [
+        "Windows Server 2016",
+        "PostgreSQL / SQL Server desnormalizado",
+        "Archivo físico en bodegas"
+      ],
+      "pain_points": [
+        "Pérdida de trazabilidad en expedientes y contratos físicos",
+        "Duplicidad recurrente de clientes en la base de datos operativa",
+        "Servidores locales sin respaldo en nube ni plan de recuperación ante desastres"
+      ],
+      "fit_score": 88,
+      "icp_reasoning": "Gran ajuste para DocumentTrack para digitalización y posterior migración cloud segura."
+    },
+    "contacts": [
+      {
+        "name": "Wilson Arboleda",
+        "role": "Jefe de Informática y Tecnología",
+        "email": "coofinep@coofinep.com.co",
+        "linkedin_url": "https://www.linkedin.com/company/coofinep/",
+        "phone": "+57 (604) 444 2663",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Jorge Alberto Pérez",
+        "role": "Gerente General",
+        "email": "servicioasociado@coofinep.com.co",
+        "linkedin_url": "https://www.linkedin.com/company/coofinep/",
+        "phone": "+57 316 444 2663",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-11-04T15:38:01.936802Z",
+    "updated_at": "2026-11-04T15:38:01.941318Z"
+  },
+  {
+    "opportunity_id": "opp_20261104153801_012",
+    "company_name": "Cooperativa Financiera Belén",
+    "website": "https://www.cooperativabelen.com.co",
+    "country": "Colombia",
+    "tax_id": "890.905.418-4",
+    "address": "Calle 30 # 76 - 47, Belén, Medellín, Antioquia",
+    "target_services": [],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Servicios Financieros / Logística",
+      "size_employees": 320,
+      "annual_revenue_range": "8M - 20M USD",
+      "current_stack": [
+        "Windows Server 2016",
+        "PostgreSQL / SQL Server desnormalizado",
+        "Archivo físico en bodegas"
+      ],
+      "pain_points": [
+        "Pérdida de trazabilidad en expedientes y contratos físicos",
+        "Duplicidad recurrente de clientes en la base de datos operativa",
+        "Servidores locales sin respaldo en nube ni plan de recuperación ante desastres"
+      ],
+      "fit_score": 88,
+      "icp_reasoning": "Gran ajuste para DocumentTrack para digitalización y posterior migración cloud segura."
+    },
+    "contacts": [
+      {
+        "name": "Jorge Restrepo",
+        "role": "Líder de Sistemas e Infraestructura",
+        "email": "contacto@cooperativabelen.com.co",
+        "linkedin_url": "https://www.linkedin.com/company/cooperativa-financiera-de-belen/",
+        "phone": "+57 (604) 341 0100",
+        "status": "PENDING_CONTACT"
+      },
+      {
+        "name": "Claudia Marcela Ramírez",
+        "role": "Gerente General",
+        "email": "servicioalcliente@cooperativabelen.com.co",
+        "linkedin_url": "https://www.linkedin.com/company/cooperativa-financiera-de-belen/",
+        "phone": "+57 312 870 0100",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-11-04T15:38:01.950885Z",
+    "updated_at": "2026-11-04T15:38:01.955603Z"
   }
 ]

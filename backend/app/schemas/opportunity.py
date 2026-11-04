@@ -92,6 +92,8 @@ class OpportunityContext(BaseModel):
     company_name: str
     website: Optional[str] = None
     country: str = "Colombia"
+    tax_id: Optional[str] = None
+    address: Optional[str] = None
     target_services: List[ServiceCategory] = Field(default_factory=list)
     stage: PipelineStage = PipelineStage.LEAD_DISCOVERED
     current_gate: Optional[GateType] = GateType.GATE_1_TARGET

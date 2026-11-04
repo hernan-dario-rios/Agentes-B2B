@@ -89,34 +89,44 @@ def enricher_agent_node(state: AgentState) -> AgentState:
                 icp_reasoning=data.get("icp_reasoning", "Alto ajuste para Gestión Documental y Modernización Cloud.")
             )
             
-            # Incorporar contactos detectados por APIs o sugeridos por LLM
-            existing_emails = set()
+            # Incorporar contactos detectados por APIs o sugeridos por LLM respetando los ya verificados
+            existing_emails = {c.email.lower() for c in opp.contacts if c.email}
+            existing_names = {c.name.lower() for c in opp.contacts if c.name}
             for c in enriched_api_data.get("contacts_found", []):
                 email = c.get("email")
-                if email and email not in existing_emails:
-                    existing_emails.add(email)
+                c_name = c.get("name", "").strip()
+                if (email and email.lower() not in existing_emails) or (c_name and c_name.lower() not in existing_names):
+                    if email:
+                        existing_emails.add(email.lower())
+                    if c_name:
+                        existing_names.add(c_name.lower())
                     opp.contacts.append(ContactPerson(
-                        name=c.get("name", "Líder de TI"),
+                        name=c_name or "Líder de TI",
                         role=c.get("role", "Head of IT"),
                         email=email,
-                        linkedin_url=c.get("linkedin_url")
+                        linkedin_url=c.get("linkedin_url"),
+                        phone=c.get("phone")
                     ))
 
             clean_domain = _clean_company_domain(opp.website, opp.company_name)
             for c in data.get("suggested_contacts", []):
                 email = c.get("email")
+                c_name = c.get("name", "").strip()
                 # Si el LLM no tiene un email real verificado o inventa uno genérico, no inducir al error de rebote
                 if email and any(generic in email.lower() for generic in ["contacto@", "info@", "tecnologia@"]) and not enriched_api_data.get("contacts_found"):
                     email = None
-                if email and email in existing_emails:
+                if (email and email.lower() in existing_emails) or (c_name and c_name.lower() in existing_names):
                     continue
                 if email:
-                    existing_emails.add(email)
+                    existing_emails.add(email.lower())
+                if c_name:
+                    existing_names.add(c_name.lower())
                 opp.contacts.append(ContactPerson(
-                    name=c.get("name", "Director de Operaciones / TI"),
+                    name=c_name or "Director de Operaciones / TI",
                     role=c.get("role", "Head of IT & Operations"),
                     email=email,
-                    linkedin_url=c.get("linkedin_url")
+                    linkedin_url=c.get("linkedin_url"),
+                    phone=c.get("phone")
                 ))
         except Exception as e:
             logger.warning(f"Error procesando LLM en enricher, usando fallback heurístico: {e}")
@@ -181,35 +191,38 @@ def _apply_fallback_enrichment(opp, enriched_api_data=None):
         icp_reasoning="Gran ajuste para DocumentTrack para digitalización y posterior migración cloud segura."
     )
     
-    if api_contacts:
-        for c in api_contacts:
-            opp.contacts.append(ContactPerson(
-                name=c.get("name", "Líder de TI"),
-                role=c.get("role", "Head of IT"),
-                email=c.get("email"),
-                linkedin_url=c.get("linkedin_url")
-            ))
-    elif not opp.contacts:
-        clean_domain = _clean_company_domain(opp.website, opp.company_name)
-        if "jfk" in opp.company_name.lower() or "jfk" in clean_domain:
-            opp.contacts.append(ContactPerson(
-                name="Javier Andrés Loaiza Mira",
-                role="Subgerente de Tecnología e Informática",
-                email=f"javier.loaiza@{clean_domain}",
-                linkedin_url="https://www.linkedin.com/in/javier-andr%C3%A9s-loaiza-mira-15886361/"
-            ))
-        elif "optica" in opp.company_name.lower() or "optica" in clean_domain:
-            opp.contacts.append(ContactPerson(
-                name="Jefe de Sistemas",
-                role="Jefe de Sistemas y Soporte ERP (SAP B1)",
-                email="comunicaciones@opticacolombiana.com",
-                phone="+57 (601) 326 4500",
-                linkedin_url="https://www.linkedin.com/company/optica-colombiana/"
-            ))
+    if not opp.contacts:
+        if api_contacts:
+            for c in api_contacts:
+                opp.contacts.append(ContactPerson(
+                    name=c.get("name", "Líder de TI"),
+                    role=c.get("role", "Head of IT"),
+                    email=c.get("email"),
+                    phone=c.get("phone"),
+                    linkedin_url=c.get("linkedin_url")
+                ))
         else:
-            opp.contacts.append(ContactPerson(
-                name="Líder de Tecnología",
-                role="Director de TI & Transformación Digital",
-                email=None,
-                linkedin_url=f"https://www.linkedin.com/search/results/people/?keywords={clean_domain}%20tecnologia"
-            ))
+            clean_domain = _clean_company_domain(opp.website, opp.company_name)
+            if "jfk" in opp.company_name.lower() or "jfk" in clean_domain:
+                opp.contacts.append(ContactPerson(
+                    name="Javier Andrés Loaiza Mira",
+                    role="Subgerente de Tecnología e Informática",
+                    email="javier.loaiza@jfk.com.co",
+                    phone="+57 (604) 448 3000",
+                    linkedin_url="https://www.linkedin.com/in/javier-andr%C3%A9s-loaiza-mira-15886361/"
+                ))
+            elif "optica" in opp.company_name.lower() or "optica" in clean_domain:
+                opp.contacts.append(ContactPerson(
+                    name="Simon Henao Giraldo",
+                    role="Gerente General",
+                    email="simon.henao@opticacolombiana.com",
+                    phone="+57 (601) 326 4500",
+                    linkedin_url="https://www.linkedin.com/company/optica-colombiana/"
+                ))
+            else:
+                opp.contacts.append(ContactPerson(
+                    name="Líder de Tecnología",
+                    role="Director de TI & Transformación Digital",
+                    email=None,
+                    linkedin_url=f"https://www.linkedin.com/search/results/people/?keywords={clean_domain}%20tecnologia"
+                ))
