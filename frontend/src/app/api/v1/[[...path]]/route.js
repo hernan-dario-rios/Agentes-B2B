@@ -1,13 +1,18 @@
 export const dynamic = "force-dynamic";
 
 async function handleRequest(request) {
-  const primaryBackend = process.env.INTERNAL_BACKEND_URL || "http://backend:8000";
-  const fallbackBackend = "http://127.0.0.1:8000";
+  // Lista exhaustiva de endpoints internos ordenados por probabilidad de conexión
+  const candidateTargets = [
+    process.env.INTERNAL_BACKEND_URL,
+    "http://backend:8000",
+    "http://innovait_sales_backend:8000",
+    "http://host.docker.internal:8000",
+    "http://172.17.0.1:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+  ].filter(Boolean);
 
-  const targets = [primaryBackend];
-  if (primaryBackend !== fallbackBackend) {
-    targets.push(fallbackBackend);
-  }
+  const targets = Array.from(new Set(candidateTargets));
 
   const incomingPath = request.nextUrl.pathname;
   const search = request.nextUrl.search || "";
@@ -63,13 +68,16 @@ async function handleRequest(request) {
       });
     } catch (err) {
       lastError = err;
-      // Reintentar con el siguiente endpoint de respaldo si existe
+      const cause = err?.cause?.code || err?.cause?.message || err?.message || "";
+      console.error(`[API Proxy] Intento fallido hacia ${targetUrl}: ${err.message} (${cause})`);
     }
   }
 
+  const causeCode = lastError?.cause?.code || lastError?.cause?.message || lastError?.message || "Conexión rechazada";
+
   return new Response(
     JSON.stringify({
-      detail: `No se pudo conectar con el backend FastAPI (${targets.join(" o ")}). Motivo: ${lastError?.message || "Servicio no disponible"}`,
+      detail: `No se pudo conectar con el backend FastAPI en ninguna de las rutas internas (${targets.join(", ")}). Causa: ${causeCode}`,
       status: 502,
     }),
     {

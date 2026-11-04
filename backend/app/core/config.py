@@ -1,6 +1,7 @@
 import os
-from typing import List, Union
-from pydantic import AnyHttpUrl, field_validator
+import json
+from typing import List, Union, Any
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,11 +26,34 @@ class Settings(BaseSettings):
     SYNC_DATABASE_URL: str = "postgresql://innovait_user:innovait_password@localhost:5432/innovait_sales"
     
     # CORS
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: Any = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:8000"
     ]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: Any) -> List[str]:
+        if isinstance(v, list):
+            return [str(x).strip() for x in v]
+        if isinstance(v, str):
+            v = v.strip()
+            # Eliminar posibles comillas externas accidentales de bash/sed
+            if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+                v = v[1:-1].strip()
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(x).strip() for x in parsed]
+                except Exception:
+                    pass
+            if "," in v:
+                return [x.strip() for x in v.split(",") if x.strip()]
+            if v:
+                return [v]
+        return ["*"]
 
     model_config = SettingsConfigDict(
         env_file=".env",

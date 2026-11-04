@@ -99,11 +99,11 @@ jobs:
             echo 'APOLLO_API_KEY="${{ secrets.APOLLO_API_KEY }}"' >> .env
             echo 'HUNTER_API_KEY="${{ secrets.HUNTER_API_KEY }}"' >> .env
             echo 'LINKEDIN_PROXY_API_KEY="${{ secrets.LINKEDIN_PROXY_API_KEY }}"' >> .env
-            echo 'POSTGRES_USER="${{ secrets.POSTGRES_USER || 'innovait_user' }}"' >> .env
-            echo 'POSTGRES_PASSWORD="${{ secrets.POSTGRES_PASSWORD || 'innovait_password' }}"' >> .env
-            echo 'POSTGRES_DB="${{ secrets.POSTGRES_DB || 'innovait_sales' }}"' >> .env
+            echo 'POSTGRES_USER="innovait_user"' >> .env
+            echo 'POSTGRES_PASSWORD="innovait_password"' >> .env
+            echo 'POSTGRES_DB="innovait_sales"' >> .env
             echo 'NEXT_PUBLIC_API_URL="http://${{ steps.prep.outputs.host }}:8000/api/v1"' >> .env
-            echo 'CORS_ORIGINS=["http://${{ steps.prep.outputs.host }}:3000","http://localhost:3000","http://${{ steps.prep.outputs.host }}:8000"]' >> .env
+            echo 'CORS_ORIGINS="*"' >> .env
             # Limpiar posibles espacios accidentales al inicio de los valores
             sed -i 's/=" */="/g' .env
 
@@ -116,9 +116,15 @@ jobs:
 
             echo "🔍 Verificando estado de contenedores en EC2..."
             sudo docker compose ps
-            sleep 3
-            echo "📋 Estado inicial de logs del backend:"
-            sudo docker compose logs --tail=25 backend
+            echo "📋 Inspeccionando logs iniciales del backend:"
+            sleep 4
+            sudo docker compose logs --tail=40 backend
+            echo "📋 Inspeccionando logs iniciales del frontend:"
+            sudo docker compose logs --tail=40 frontend
+
+            echo "🧪 Probando respuesta del backend desde el host EC2..."
+            curl -sS -i http://localhost:8000/ || echo "Aviso: Backend aún no responde en localhost:8000"
+            curl -sS -i http://localhost:8000/api/v1/gates/pending || echo "Aviso: /api/v1/gates/pending aún no responde"
 
             # 7. Limpiar capas e imágenes antiguas para ahorrar espacio en disco (Free Tier)
             echo "🧹 Limpiando imágenes en desuso..."

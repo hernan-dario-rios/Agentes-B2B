@@ -11,11 +11,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-innovait_user} -d ${POSTGRES_DB:-innovait_sales}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    networks:
+      - innovait_net
 
   backend:
     build:
@@ -32,11 +29,16 @@ services:
       - LINKEDIN_PROXY_API_KEY=${LINKEDIN_PROXY_API_KEY:-}
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - DEBUG=${DEBUG:-False}
-      - CORS_ORIGINS=${CORS_ORIGINS:-["*"]}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
     volumes:
       - ./backend/app/knowledge:/app/app/knowledge
     ports:
       - "8000:8000"
+    networks:
+      innovait_net:
+        aliases:
+          - backend
+          - innovait_sales_backend
     depends_on:
       - postgres
 
@@ -50,10 +52,18 @@ services:
     restart: always
     environment:
       - INTERNAL_BACKEND_URL=http://backend:8000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "3000:3000"
+    networks:
+      - innovait_net
     depends_on:
       - backend
 
 volumes:
   pgdata:
+
+networks:
+  innovait_net:
+    driver: bridge
