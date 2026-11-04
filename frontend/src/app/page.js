@@ -45,19 +45,10 @@ import {
   PhoneCall
 } from "lucide-react";
 
-// Detección dinámica y automática de la URL del Backend (AWS EC2 o Localhost)
-const getApiBase = () => {
-  if (typeof window !== "undefined" && window.location?.hostname) {
-    const host = window.location.hostname;
-    const protocol = window.location.protocol || "http:";
-    // Siempre conecta al puerto 8000 del mismo host desde el que se abrió la web
-    return `${protocol}//${host}:8000/api/v1`;
-  }
-  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-};
+// Endpoint de API con Reverse Proxy nativo de Next.js (Mismo origen / sin bloqueos de puerto 8000 ni CORS)
+const API_BASE = "/api/v1";
 
 export default function SalesCommandCenter() {
-  const API_BASE = getApiBase();
   const [activeTab, setActiveTab] = useState("inbox"); // "inbox" | "kanban" | "catalog"
   const [pendingGates, setPendingGates] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
@@ -879,7 +870,7 @@ export default function SalesCommandCenter() {
             <div className="flex items-center space-x-2 text-xs">
               <span className={`w-2.5 h-2.5 rounded-full ${apiConnected ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`}></span>
               <span className="text-slate-600 font-medium">
-                {apiConnected ? `Backend Conectado (${API_BASE.replace('/api/v1', '')})` : "Modo Interactivo Local"}
+                {apiConnected ? "Backend LangGraph Conectado (Port 8000)" : "Modo Interactivo Local"}
               </span>
             </div>
 

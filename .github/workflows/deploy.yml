@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-aws-ec2
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: Build & Deploy to AWS EC2
