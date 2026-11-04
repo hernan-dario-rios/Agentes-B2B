@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 from pathlib import Path
@@ -5,7 +7,13 @@ from typing import Dict, List, Optional
 from datetime import datetime, timezone
 from langgraph.types import Command
 
-from app.schemas.opportunity import OpportunityContext, PipelineStage, ContactPerson
+from app.schemas.opportunity import (
+    OpportunityContext,
+    PipelineStage,
+    ContactPerson,
+    ICPData,
+    ServiceCategory,
+)
 from app.schemas.gate import GateDecisionPayload, GateStatus, PendingGateSummary, GateType, GateAction, GateHistoryRecord
 from app.graph.state import AgentState
 from app.graph.workflow import sales_pipeline_graph
