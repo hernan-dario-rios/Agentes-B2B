@@ -135,7 +135,7 @@ def _apply_fallback_outreach(opp, contact_name, contact_role):
 
 Es un placer saludarle.
 
-Desde **INNOVAIT Tech Solutions**, hemos seguido de cerca la destacada trayectoria y el crecimiento de **{opp.company_name}** en el sector, reconociendo su continuo compromiso con la excelencia operativa y la calidad en el servicio a sus usuarios y asociados.
+Desde **INNOVAIT Transformación Digital**, hemos seguido de cerca la destacada trayectoria y el crecimiento de **{opp.company_name}** en el sector, reconociendo su continuo compromiso con la excelencia operativa y la calidad en el servicio a sus usuarios y asociados.
 
 En organizaciones con altos volúmenes de transacciones, custodia de contratos y gestión de créditos como {opp.company_name}, los equipos de Tecnología y Operaciones suelen enfrentarse a desafíos estratégicos recurrentes:
 
@@ -158,7 +158,7 @@ Agradezco de antemano su tiempo y consideración.
 Cordialmente,
 
 **Equipo de Soluciones Corporativas**
-INNOVAIT Tech Solutions
+INNOVAIT Transformación Digital
 contacto@innovait.co | www.innovait.co"""
 
     whatsapp_msg = _build_sme_whatsapp_message(opp, contact_name)

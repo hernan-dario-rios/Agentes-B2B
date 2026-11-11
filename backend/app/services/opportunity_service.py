@@ -33,13 +33,26 @@ class OpportunityService:
         # Repositorio sincronizado en memoria y persistido en archivo JSON permanente
         self.opportunities: Dict[str, OpportunityContext] = {}
         self.graph_states: Dict[str, AgentState] = {}
+        self._last_mtime: float = 0.0
         self._load_db()
+
+    def _check_and_reload(self):
+        """Verifica si el archivo JSON cambió en disco y sincroniza en memoria automáticamente"""
+        try:
+            if not DB_PATH.exists():
+                return
+            mtime = DB_PATH.stat().st_mtime
+            if mtime != self._last_mtime:
+                self._load_db()
+        except Exception as e:
+            logger.debug(f"[OpportunityService] Excepción menor verificando mtime: {e}")
 
     def _load_db(self):
         """Carga permanente de las oportunidades desde el archivo JSON del backend"""
         if not DB_PATH.exists():
             return
         try:
+            self._last_mtime = DB_PATH.stat().st_mtime
             with open(DB_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, list):
@@ -112,6 +125,7 @@ class OpportunityService:
         return opp
 
     def get_opportunity(self, opp_id: str) -> Optional[OpportunityContext]:
+        self._check_and_reload()
         # Consultar estado actual del hilo en LangGraph
         config = {"configurable": {"thread_id": opp_id}}
         state_snapshot = sales_pipeline_graph.get_state(config)
@@ -120,6 +134,7 @@ class OpportunityService:
         return self.opportunities.get(opp_id)
 
     def list_opportunities(self) -> List[OpportunityContext]:
+        self._check_and_reload()
         return list(self.opportunities.values())
 
     def update_contacts(self, opp_id: str, contacts: List[ContactPerson]) -> OpportunityContext:
@@ -133,7 +148,22 @@ class OpportunityService:
         self._save_db()
         return opp
 
+    def _clean_contact_metric(self, c_dict: Optional[dict]) -> Optional[str]:
+        if not c_dict:
+            return None
+        c_n = (c_dict.get("name") or "").strip()
+        c_r = (c_dict.get("role") or "").strip()
+        from app.api.v1.voice import is_generic_or_unknown_contact
+        name_is_valid = bool(c_n) and not is_generic_or_unknown_contact(c_n)
+        role_is_valid = bool(c_r) and not is_generic_or_unknown_contact(c_r)
+        if not name_is_valid and not role_is_valid:
+            return None
+        if name_is_valid and role_is_valid:
+            return f"{c_n} ({c_r})"
+        return c_n if name_is_valid else c_r
+
     def get_pending_gates(self) -> List[PendingGateSummary]:
+        self._check_and_reload()
         pending = []
         for opp_id, opp in self.opportunities.items():
             if opp.stage == PipelineStage.WAITING_HUMAN_APPROVAL and opp.current_gate:
@@ -188,21 +218,6 @@ class OpportunityService:
                     contacts_list = [c for c in contacts_list if "tecnologia@" not in (c.get("email") or "").lower()]
                     opp.contacts = [c for c in opp.contacts if "tecnologia@" not in (c.email or "").lower()]
 
-                    if not any("sistemas" in (c.get("role") or "").lower() for c in contacts_list):
-                        optica_contact = {
-                            "name": "Jefe de Sistemas",
-                            "role": "Jefe de Sistemas y Soporte ERP (SAP B1)",
-                            "email": "comunicaciones@opticacolombiana.com",
-                            "linkedin_url": "https://www.linkedin.com/company/optica-colombiana/"
-                        }
-                        contacts_list.insert(0, optica_contact)
-                        opp.contacts.insert(0, ContactPerson(
-                            name=optica_contact["name"],
-                            role=optica_contact["role"],
-                            email=optica_contact["email"],
-                            linkedin_url=optica_contact["linkedin_url"]
-                        ))
-
                     if opp.outreach and "tecnologia@opticacolombiana.com" in opp.outreach.body_markdown:
                         opp.outreach.body_markdown = opp.outreach.body_markdown.replace(
                             "tecnologia@opticacolombiana.com", "comunicaciones@opticacolombiana.com"
@@ -215,12 +230,13 @@ class OpportunityService:
                     headline = f"Validación de Target: {opp.company_name}"
                     agent_name = "Scraper & Enricher Agent"
                     first_c = contacts_list[0] if contacts_list else None
-                    contact_summary = f" • Contacto: {first_c['name']} ({first_c['role']})" if first_c else ""
+                    contact_val = self._clean_contact_metric(first_c)
+                    contact_summary = f" • Contacto: {contact_val}" if contact_val else ""
                     recom = f"Ajuste ICP {opp.icp_data.fit_score}/100. Industria: {opp.icp_data.industry}.{contact_summary}"
                     metrics = {
                         "fit_score": opp.icp_data.fit_score,
                         "stack": opp.icp_data.current_stack,
-                        "contact": f"{first_c['name']} ({first_c['role']})" if first_c else None,
+                        "contact": contact_val,
                         "phone": first_c.get("phone") if first_c else None,
                         "email": first_c.get("email") if first_c else None,
                         "address": opp.address,
@@ -254,10 +270,11 @@ class OpportunityService:
                     recom = opp.outreach.body_markdown if (opp.outreach and opp.outreach.body_markdown) else "Borrador de comunicación corporativa listo."
                     channel_label = opp.outreach.channel if (opp.outreach and opp.outreach.channel) else ("WHATSAPP / LLAMADA" if not opp.website else "EMAIL")
                     first_c = contacts_list[0] if contacts_list else {}
+                    contact_val = self._clean_contact_metric(first_c)
                     metrics = {
                         "channel": channel_label,
                         "subject": opp.outreach.subject if opp.outreach else "Sin asunto",
-                        "contact": f"{first_c.get('name', 'Contacto')} ({first_c.get('role', 'Principal')})",
+                        "contact": contact_val,
                         "phone": first_c.get("phone"),
                         "email": first_c.get("email"),
                         "address": opp.address

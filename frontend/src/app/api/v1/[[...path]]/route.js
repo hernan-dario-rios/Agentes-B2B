@@ -1,15 +1,19 @@
 export const dynamic = "force-dynamic";
 
+// Memoria en caliente para el endpoint que responde exitosamente (evita reintentos lentos)
+let activeBackendUrl = null;
+
 async function handleRequest(request) {
-  // Lista exhaustiva de endpoints internos ordenados por probabilidad de conexión
+  // Lista ordenada de posibles endpoints del backend
   const candidateTargets = [
+    activeBackendUrl,
     process.env.INTERNAL_BACKEND_URL,
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
     "http://backend:8000",
     "http://innovait_sales_backend:8000",
     "http://host.docker.internal:8000",
     "http://172.17.0.1:8000",
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
   ].filter(Boolean);
 
   const targets = Array.from(new Set(candidateTargets));
@@ -44,13 +48,29 @@ async function handleRequest(request) {
   for (const backend of targets) {
     const targetUrl = `${backend.replace(/\/$/, "")}${incomingPath}${search}`;
     try {
+      // Ajuste dinámico de timeout:
+      // Para síntesis de voz (TTS) o simulación con IA, se conceden hasta 25s para no interrumpir el audio neuronal.
+      // Si ya conocemos el backend activo, se conceden hasta 15s. Para sondeo inicial de IPs desconocidas, 3.5s.
+      const isTTSOrSim = incomingPath.includes("/voice/tts") || incomingPath.includes("/simulate");
+      const isKnownActive = activeBackendUrl && backend === activeBackendUrl;
+      const timeoutMs = isTTSOrSim ? 25000 : (isKnownActive ? 15000 : 3500);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
       const res = await fetch(targetUrl, {
         method,
         headers: forwardHeaders,
         body: bodyData,
         cache: "no-store",
         redirect: "follow",
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
+      // Si respondió con éxito, recordamos este backend como el activo
+      activeBackendUrl = backend;
 
       const responseHeaders = new Headers();
       res.headers.forEach((value, key) => {
@@ -68,8 +88,10 @@ async function handleRequest(request) {
       });
     } catch (err) {
       lastError = err;
-      const cause = err?.cause?.code || err?.cause?.message || err?.message || "";
-      console.error(`[API Proxy] Intento fallido hacia ${targetUrl}: ${err.message} (${cause})`);
+      // Si el backend que teníamos guardado falló, lo reseteamos para buscar de nuevo
+      if (activeBackendUrl === backend) {
+        activeBackendUrl = null;
+      }
     }
   }
 

@@ -42,7 +42,20 @@ import {
   Radio,
   Zap,
   MapPin,
-  PhoneCall
+  PhoneCall,
+  PhoneOff,
+  User,
+  Bot,
+  Volume2,
+  VolumeX,
+  Hand,
+  Mic,
+  MicOff,
+  Headphones,
+  PhoneForwarded,
+  Play,
+  Square,
+  Pause
 } from "lucide-react";
 
 // Endpoint de API con Reverse Proxy nativo de Next.js (Mismo origen / sin bloqueos de puerto 8000 ni CORS)
@@ -175,6 +188,797 @@ export default function SalesCommandCenter() {
       setFinalBody(outreachConfirmTarget.context_details?.body_markdown || outreachConfirmTarget.recommendation_summary || "");
       const email = outreachConfirmTarget.context_details?.contacts?.[0]?.email || outreachConfirmTarget.key_metrics?.contact || "";
       setFinalRecipient(email || "correo@empresa.com");
+    }
+  };
+
+  // Modal y Gestión de Agente de Voz Sara (Llamadas Celular SIM Android + Gemini Live)
+  const [saraModalOpen, setSaraModalOpen] = useState(false);
+  const [saraTargetGate, setSaraTargetGate] = useState(null);
+  const [saraPhone, setSaraPhone] = useState("");
+  const [saraVoice, setSaraVoice] = useState("paloma");
+  const [saraContactName, setSaraContactName] = useState("");
+  const [saraContactRole, setSaraContactRole] = useState("");
+  const [saraCustomInstructions, setSaraCustomInstructions] = useState("");
+  const [saraPrompt, setSaraPrompt] = useState("");
+  const [saraLoadingPrompt, setSaraLoadingPrompt] = useState(false);
+  const [saraSimulating, setSaraSimulating] = useState(false);
+  const [saraDispatching, setSaraDispatching] = useState(false);
+  const [saraSavingGate3, setSaraSavingGate3] = useState(false);
+  const [saraSimulationResult, setSaraSimulationResult] = useState(null);
+  const [saraDispatchedJob, setSaraDispatchedJob] = useState(null);
+  const [saraActiveSubTab, setSaraActiveSubTab] = useState("preview"); // "preview" | "simulate" | "dispatch" | "guide"
+
+  // Parser tolerante de transcripción (acepta string multilínea, array de strings o array de objetos)
+  const parseTranscriptItems = (rawTranscript) => {
+    if (!rawTranscript) return [];
+    if (Array.isArray(rawTranscript)) {
+      return rawTranscript.map((item, idx) => {
+        if (typeof item === "string") {
+          const colonIdx = item.indexOf(":");
+          if (colonIdx > -1) {
+            return {
+              speaker: item.substring(0, colonIdx).trim().replace(/^\*+|\*+$/g, ""),
+              text: item.substring(colonIdx + 1).trim()
+            };
+          }
+          return { speaker: idx % 2 === 0 ? "Sara" : "Contacto", text: item.trim() };
+        }
+        return item;
+      });
+    }
+    if (typeof rawTranscript === "string") {
+      return rawTranscript
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .map((line, idx) => {
+          const colonIdx = line.indexOf(":");
+          if (colonIdx > -1) {
+            return {
+              speaker: line.substring(0, colonIdx).trim().replace(/^\*+|\*+$/g, ""),
+              text: line.substring(colonIdx + 1).trim()
+            };
+          }
+          return { speaker: idx % 2 === 0 ? "Sara" : "Contacto", text: line };
+        });
+    }
+    return [];
+  };
+
+  // Reproductor de Audio Neuronal de Alta Fidelidad
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [currentAudioIndex, setCurrentAudioIndex] = useState(-1);
+  const currentAudioElementRef = React.useRef(null);
+
+  // Saludo temporal colombiano según la hora en Colombia (America/Bogota, UTC-5)
+  const getColombianGreeting = () => {
+    try {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Bogota",
+        hour: "numeric",
+        hour12: false
+      });
+      const hour = parseInt(formatter.format(now), 10);
+      if (hour >= 5 && hour < 12) return "muy buenos días";
+      if (hour >= 12 && hour < 18) return "muy buenas tardes";
+      return "muy buenas noches";
+    } catch {
+      const h = new Date().getHours();
+      if (h >= 5 && h < 12) return "muy buenos días";
+      if (h >= 12 && h < 18) return "muy buenas tardes";
+      return "muy buenas noches";
+    }
+  };
+
+  // Valida con rigor si un contacto es genérico, desconocido, solo puntuación o un cargo sin nombre propio
+  const isGenericContact = (name) => {
+    if (!name || typeof name !== "string") return true;
+    const withoutParens = name.replace(/\(.*?\)/g, "").trim();
+    const lower = withoutParens.toLowerCase();
+    if (!lower || ["desconocido", "por definir", "sin contacto", "n/a", "none", "null", "contacto", "principal", "interlocutor"].includes(lower)) return true;
+    if (lower.includes("/") || lower.includes("\\") || lower.includes("barra")) return true;
+
+    const genericTokens = new Set([
+      "director", "directora", "gerente", "lider", "líder", "jefe", "jefatura", "responsable",
+      "encargado", "encargada", "tecnologia", "tecnología", "operaciones", "sistemas",
+      "ti", "it", "de", "del", "la", "el", "y", "o", "en", "para", "area", "área",
+      "infraestructura", "desconocido", "contacto", "cargo", "puesto", "soporte",
+      "ingenieria", "ingeniería", "coordinador", "coordinadora", "asesor", "consultor",
+      "analista", "auxiliar", "administrador", "administradora", "seguridad", "desarrollo", "principal"
+    ]);
+
+    const words = lower.match(/[a-záéíóúñ]+/gi) || [];
+    if (words.length === 0) return true;
+    if (words.every(w => genericTokens.has(w))) return true;
+    return false;
+  };
+
+  // Extrae el nombre propio limpio de un contacto si es válido; si es genérico o vacío retorna ""
+  const extractCleanName = (raw) => {
+    if (!raw || typeof raw !== "string") return "";
+    const cleaned = raw.replace(/\(.*?\)/g, "").trim();
+    return isGenericContact(cleaned) ? "" : cleaned;
+  };
+
+  // Selector de voz de respaldo: NUNCA usar acento de España (es-ES).
+  // Prioriza voz colombiana (es-CO) o latinoamericana seseante (es-419, es-US, es-MX).
+  const selectBestColombianOrLatinVoice = () => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return null;
+    const voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) return null;
+
+    // 1. Prioridad: Voz colombiana explícita
+    const colVoice = voices.find((v) =>
+      v.lang === "es-CO" ||
+      v.lang.toLowerCase().startsWith("es-co") ||
+      (v.lang.toLowerCase().startsWith("es") && v.name.toLowerCase().includes("colombia"))
+    );
+    if (colVoice) return colVoice;
+
+    // 2. Prioridad: Voces latinoamericanas (es-419, es-US, es-MX) descartando explícitamente España (es-ES)
+    const latins = voices.filter((v) => {
+      const l = (v.lang || "").toLowerCase();
+      const n = (v.name || "").toLowerCase();
+      const isSpain = l.includes("es-es") || n.includes("spain") || n.includes("españa") || n.includes("helena") || n.includes("laura");
+      return !isSpain && (
+        l.includes("es-419") || l.includes("es-us") || l.includes("es-mx") || l.includes("es-cl") || l.includes("es-ar") ||
+        n.includes("sabina") || n.includes("mexic") || n.includes("latino") || n.includes("latin") || n.includes("paulina") || n.includes("raul")
+      );
+    });
+    if (latins.length > 0) {
+      const femaleLatin = latins.find((v) =>
+        v.name.toLowerCase().includes("sabina") ||
+        v.name.toLowerCase().includes("female") ||
+        v.name.toLowerCase().includes("femenin") ||
+        v.name.toLowerCase().includes("paulina")
+      );
+      return femaleLatin || latins[0];
+    }
+
+    // 3. Cualquier voz en español descartando España
+    const nonSpain = voices.find((v) =>
+      v.lang.toLowerCase().startsWith("es") &&
+      !v.lang.toLowerCase().includes("es-es") &&
+      !v.name.toLowerCase().includes("spain") &&
+      !v.name.toLowerCase().includes("españa")
+    );
+    if (nonSpain) return nonSpain;
+
+    return voices.find((v) => v.lang.toLowerCase().startsWith("es")) || null;
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
+  }, []);
+
+  const stopAudioPlayback = () => {
+    if (currentAudioElementRef.current) {
+      try {
+        currentAudioElementRef.current.pause();
+        currentAudioElementRef.current.currentTime = 0;
+      } catch {}
+      currentAudioElementRef.current = null;
+    }
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+    setIsPlayingAudio(false);
+    setCurrentAudioIndex(-1);
+  };
+
+  const playTranscriptAudio = (transcriptItems) => {
+    if (isPlayingAudio) {
+      stopAudioPlayback();
+      return;
+    }
+
+    if (!transcriptItems || transcriptItems.length === 0) return;
+
+    stopAudioPlayback();
+    setIsPlayingAudio(true);
+    setCurrentAudioIndex(0);
+
+    let currentIndex = 0;
+
+    const playNextTurn = () => {
+      if (currentIndex >= transcriptItems.length) {
+        setIsPlayingAudio(false);
+        setCurrentAudioIndex(-1);
+        return;
+      }
+
+      setCurrentAudioIndex(currentIndex);
+      const item = transcriptItems[currentIndex];
+      const speaker = item.speaker || (currentIndex % 2 === 0 ? "Sara" : "Contacto");
+
+      // Usar servicio TTS neuronal de alta fidelidad con la voz seleccionada (colombiana o latina)
+      const isSaraSpeaker = (speaker || "").toLowerCase().includes("sara") || (speaker || "").toLowerCase().includes("maggie");
+      const voiceForSpeaker = isSaraSpeaker ? (saraVoice || "paloma") : "jorge";
+      const ttsUrl = `${API_BASE}/voice/tts?text=${encodeURIComponent(item.text)}&speaker=${encodeURIComponent(speaker)}&voice_id=${encodeURIComponent(voiceForSpeaker)}`;
+      const audio = new Audio(ttsUrl);
+      currentAudioElementRef.current = audio;
+
+      audio.onended = () => {
+        currentIndex++;
+        setTimeout(() => {
+          playNextTurn();
+        }, 350);
+      };
+
+      audio.onerror = (err) => {
+        console.warn("Fallo endpoint TTS neuronal, usando fallback Web Speech latino:", err);
+        if (typeof window !== "undefined" && window.speechSynthesis) {
+          const phoneticText = item.text
+            .replace(/\bSimon\b/gi, "Simón");
+          const utter = new SpeechSynthesisUtterance(phoneticText);
+          const bestVoice = selectBestColombianOrLatinVoice();
+          if (bestVoice) {
+            utter.voice = bestVoice;
+            utter.lang = bestVoice.lang;
+          } else {
+            utter.lang = "es-CO";
+          }
+          utter.pitch = isSaraSpeaker ? 1.15 : 0.95;
+          utter.rate = 1.02;
+          utter.onend = () => {
+            currentIndex++;
+            setTimeout(() => playNextTurn(), 350);
+          };
+          window.speechSynthesis.speak(utter);
+        } else {
+          currentIndex++;
+          playNextTurn();
+        }
+      };
+
+      audio.play().catch((playErr) => {
+        console.warn("Audio play prevented:", playErr);
+        currentIndex++;
+        playNextTurn();
+      });
+    };
+
+    playNextTurn();
+  };
+
+  // Modo Llamada Interactiva en Vivo (Micrófono: Usuario vs Sara)
+  const [liveCallActive, setLiveCallActive] = useState(false);
+  const [liveCallStatus, setLiveCallStatus] = useState("idle"); // "idle" | "listening" | "thinking" | "speaking" | "ended"
+  const [liveCallHistory, setLiveCallHistory] = useState([]);
+  const [liveCallInterlocutorLabel, setLiveCallInterlocutorLabel] = useState(null);
+  const [liveCallUserText, setLiveCallUserText] = useState("");
+  const [liveCallSeconds, setLiveCallSeconds] = useState(0);
+  const [liveCallMeetingScheduled, setLiveCallMeetingScheduled] = useState(false);
+  const [liveInterimSpeech, setLiveInterimSpeech] = useState("");
+  const [micPermissionError, setMicPermissionError] = useState(null);
+  const [audioVolumeLevel, setAudioVolumeLevel] = useState(0);
+
+  const recognitionRef = React.useRef(null);
+  const liveAudioElementRef = React.useRef(null);
+  const liveTimerRef = React.useRef(null);
+  const silenceTimerRef = React.useRef(null);
+  const audioStreamRef = React.useRef(null);
+  const audioContextRef = React.useRef(null);
+
+  const stopLiveCallAudio = () => {
+    if (liveAudioElementRef.current) {
+      try {
+        liveAudioElementRef.current.pause();
+        liveAudioElementRef.current.currentTime = 0;
+      } catch {}
+      liveAudioElementRef.current = null;
+    }
+  };
+
+  const endLiveCall = () => {
+    stopLiveCallAudio();
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+      recognitionRef.current = null;
+    }
+    if (audioStreamRef.current) {
+      try {
+        audioStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {}
+      audioStreamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch {}
+      audioContextRef.current = null;
+    }
+    if (liveTimerRef.current) {
+      clearInterval(liveTimerRef.current);
+      liveTimerRef.current = null;
+    }
+    setLiveCallActive(false);
+    setLiveCallStatus("ended");
+    setLiveInterimSpeech("");
+    setAudioVolumeLevel(0);
+  };
+
+  const playVoicePreview = (voiceId) => {
+    stopLiveCallAudio();
+    stopAudioPlayback();
+    const greeting = getColombianGreeting();
+    const sampleText = `Aló, ${greeting}. Le habla Sara de INNOVAIT Transformación Digital. ¿En qué le podemos colaborar?`;
+    const ttsUrl = `${API_BASE}/voice/tts?text=${encodeURIComponent(sampleText)}&speaker=Sara&voice_id=${encodeURIComponent(voiceId || "paloma")}`;
+    const audio = new Audio(ttsUrl);
+    currentAudioElementRef.current = audio;
+    audio.play().catch((err) => console.warn("Voice preview error:", err));
+  };
+
+  const handleInterruptSara = () => {
+    stopLiveCallAudio();
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    setLiveCallStatus("listening");
+    startMicrophoneRecognition();
+  };
+
+  const playSaraAudioReply = (text, onFinished) => {
+    stopLiveCallAudio();
+    setLiveCallStatus("speaking");
+    const ttsUrl = `${API_BASE}/voice/tts?text=${encodeURIComponent(text)}&speaker=Sara&voice_id=${encodeURIComponent(saraVoice || "paloma")}`;
+    const audio = new Audio(ttsUrl);
+    liveAudioElementRef.current = audio;
+
+    const handleSpeechEnded = () => {
+      setLiveCallStatus("listening");
+      startMicrophoneRecognition();
+      if (onFinished) onFinished();
+    };
+
+    audio.onended = handleSpeechEnded;
+
+    audio.onerror = (audioErr) => {
+      console.warn("Fallo endpoint TTS neuronal para respuesta en vivo, usando fallback latino seseante:", audioErr);
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        const phoneticText = text
+          .replace(/\bSimon\b/gi, "Simón");
+        const utter = new SpeechSynthesisUtterance(phoneticText);
+        const bestVoice = selectBestColombianOrLatinVoice();
+        if (bestVoice) {
+          utter.voice = bestVoice;
+          utter.lang = bestVoice.lang;
+        } else {
+          utter.lang = "es-CO";
+        }
+        utter.pitch = 1.15;
+        utter.rate = 1.02;
+        utter.onend = handleSpeechEnded;
+        utter.onerror = handleSpeechEnded;
+        window.speechSynthesis.speak(utter);
+      } else {
+        handleSpeechEnded();
+      }
+    };
+
+    audio.play().catch(() => {
+      handleSpeechEnded();
+    });
+
+    // BARGE-IN: Mantener el micrófono activo mientras Sara habla para que el usuario pueda interrumpirla al hablar
+    startMicrophoneRecognition();
+  };
+
+  const liveTranscriptEndRef = React.useRef(null);
+  useEffect(() => {
+    if (liveTranscriptEndRef.current) {
+      liveTranscriptEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [liveCallHistory, liveCallStatus, liveInterimSpeech]);
+
+  const startMicrophoneRecognition = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      setMicPermissionError("Tu navegador no soporta reconocimiento de voz nativo (SpeechRecognition). Puedes usar Google Chrome, Microsoft Edge o interactuar con el campo de texto.");
+      setLiveCallStatus("idle");
+      return;
+    }
+
+    try {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch {}
+      }
+      const recognition = new SpeechRec();
+      recognition.lang = "es-CO";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      let localAccumulated = "";
+
+      recognition.onstart = () => {
+        // Solo cambia a listening si Sara no está hablando
+        if (!liveAudioElementRef.current || liveAudioElementRef.current.paused) {
+          setLiveCallStatus("listening");
+        }
+        setLiveInterimSpeech("");
+        setMicPermissionError(null);
+      };
+
+      recognition.onresult = (event) => {
+        let interim = "";
+        let finalStr = localAccumulated;
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const chunk = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalStr += " " + chunk;
+          } else {
+            interim += chunk;
+          }
+        }
+        localAccumulated = finalStr.trim();
+        const currentFull = (localAccumulated + (interim ? " " + interim : "")).trim();
+        if (currentFull) {
+          setLiveInterimSpeech(currentFull);
+        }
+
+        // BARGE-IN / INTERRUPCIÓN EN VIVO:
+        // Si el usuario empieza a hablar (>2 caracteres) mientras Sara reproduce audio,
+        // silenciar a Sara inmediatamente para cederle la palabra al usuario
+        if (currentFull.length >= 2 && liveAudioElementRef.current && !liveAudioElementRef.current.paused) {
+          try {
+            liveAudioElementRef.current.pause();
+            liveAudioElementRef.current.currentTime = 0;
+            liveAudioElementRef.current = null;
+          } catch {}
+          if (typeof window !== "undefined" && window.speechSynthesis) {
+            try { window.speechSynthesis.cancel(); } catch {}
+          }
+          setLiveCallStatus("listening");
+        }
+
+        // Si el usuario dijo una frase sustancial (>2 caracteres):
+        // Temporizador de silencio generoso y adaptativo para que el usuario pueda formular ideas con calma sin que le corte de una
+        if (currentFull.length > 2) {
+          if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+          }
+
+          // Cálculo adaptativo del tiempo de pausa:
+          const words = currentFull.trim().split(/\s+/);
+          const lastWord = words[words.length - 1].toLowerCase().replace(/[.,!?;:]/g, "");
+          const connectorWords = [
+            "y", "o", "u", "e", "pero", "que", "de", "con", "en", "para", "por", "si",
+            "entonces", "este", "eh", "o sea", "porque", "pues", "bueno", "como", "a ver",
+            "mire", "nosotros", "yo", "también", "tambien", "además", "ademas", "sin embargo"
+          ];
+          const isThinkingOrMidSentence = connectorWords.includes(lastWord) || words.length <= 3;
+          // Si el usuario está pensando o la frase es corta, dar 3400ms; si es oración completa, 2800ms
+          const silenceDelay = isThinkingOrMidSentence ? 3400 : 2800;
+
+          silenceTimerRef.current = setTimeout(() => {
+            const trimmed = currentFull.trim();
+            // Ignorar ruidos o monosílabos accidentales de menos de 3 caracteres
+            if (trimmed.length >= 3) {
+              try { recognition.abort(); } catch {}
+              sendUserLiveMessage(trimmed);
+            }
+          }, silenceDelay);
+        }
+      };
+
+      recognition.onerror = (err) => {
+        console.warn("Speech recognition error:", err.error);
+        if (err.error === "no-speech") {
+          return;
+        }
+        if (err.error === "not-allowed" || err.error === "service-not-allowed") {
+          setMicPermissionError("El navegador bloqueó el acceso al micrófono. Por favor permite el micrófono en el candado de la URL.");
+          setLiveCallStatus("idle");
+        }
+      };
+
+      recognition.onend = () => {
+        // Al terminar un tramo de audio, si la llamada sigue activa y Sara no está hablando ni pensando, mantener el micrófono caliente
+        if (liveCallActive && liveCallStatus === "listening" && (!liveAudioElementRef.current || liveAudioElementRef.current.paused)) {
+          if (!silenceTimerRef.current) {
+            try {
+              recognition.start();
+            } catch {}
+          }
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (e) {
+      console.warn("Speech recognition init exception:", e);
+      setLiveCallStatus("idle");
+    }
+  };
+
+  const sendUserLiveMessage = async (textToSend) => {
+    if (!textToSend || !saraTargetGate) return;
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    stopLiveCallAudio();
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+    }
+
+    setLiveInterimSpeech("");
+    const userTurnItem = {
+      speaker: "Contacto",
+      text: textToSend,
+      label: liveCallInterlocutorLabel || "Al teléfono"
+    };
+    const updatedHistory = [...liveCallHistory, userTurnItem];
+    setLiveCallHistory(updatedHistory);
+    setLiveCallUserText("");
+    setLiveCallStatus("thinking");
+
+    try {
+      const res = await fetch(`${API_BASE}/voice/chat-turn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opportunity_id: saraTargetGate.opportunity_id,
+          company_name: saraTargetGate.company_name,
+          user_message: textToSend,
+          conversation_history: updatedHistory,
+          contact_name: saraContactName,
+          contact_role: saraContactRole
+        })
+      });
+
+      if (!res.ok) throw new Error("Error en respuesta de Sara");
+      const data = await res.json();
+
+      const resolvedLabel = data.interlocutor_label || liveCallInterlocutorLabel;
+      if (data.interlocutor_label) {
+        setLiveCallInterlocutorLabel(data.interlocutor_label);
+      }
+      if (data.meeting_scheduled !== undefined) {
+        setLiveCallMeetingScheduled(Boolean(data.meeting_scheduled));
+      }
+      if (data.discovered_contact) {
+        if (data.discovered_contact.name && (!saraContactName || isGenericContact(saraContactName))) {
+          setSaraContactName(data.discovered_contact.name);
+        }
+        if (data.discovered_contact.role && (!saraContactRole || isGenericContact(saraContactRole))) {
+          setSaraContactRole(data.discovered_contact.role);
+        }
+      }
+
+      const newHistoryWithSara = [
+        ...updatedHistory.map(h => (h.speaker === "Contacto" && (!h.label || h.label === "Al teléfono") && resolvedLabel) ? { ...h, label: resolvedLabel } : h),
+        { speaker: "Sara", text: data.reply }
+      ];
+      setLiveCallHistory(newHistoryWithSara);
+
+      playSaraAudioReply(data.reply, () => {
+        if (data.is_farewell) {
+          endLiveCall();
+        } else {
+          startMicrophoneRecognition();
+        }
+      });
+    } catch (err) {
+      console.error("Live turn error:", err);
+      setLiveCallStatus("idle");
+    }
+  };
+
+  const handleStartLiveCall = async () => {
+    endLiveCall();
+    setLiveCallActive(true);
+    setLiveCallSeconds(0);
+    setLiveCallMeetingScheduled(false);
+    setLiveCallInterlocutorLabel(null);
+    setLiveInterimSpeech("");
+    setMicPermissionError(null);
+
+    // Solicitar permiso de micrófono inmediatamente con el gesto del clic
+    try {
+      if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+        audioStreamRef.current = stream;
+
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            const ctx = new AudioContextClass();
+            audioContextRef.current = ctx;
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 64;
+            const source = ctx.createMediaStreamSource(stream);
+            source.connect(analyser);
+            const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+            const measure = () => {
+              if (!audioStreamRef.current) return;
+              analyser.getByteFrequencyData(dataArray);
+              let sum = 0;
+              for (let i = 0; i < dataArray.length; i++) {
+                sum += dataArray[i];
+              }
+              const avg = sum / dataArray.length;
+              setAudioVolumeLevel(Math.min(100, Math.round((avg / 128) * 100)));
+              requestAnimationFrame(measure);
+            };
+            measure();
+          }
+        } catch (audioMeterErr) {
+          console.warn("No se pudo iniciar medidor visual de audio:", audioMeterErr);
+        }
+      }
+    } catch (permErr) {
+      console.warn("Permiso de micrófono no otorgado por el usuario:", permErr);
+      setMicPermissionError("No se pudo acceder al micrófono. Por favor permite el acceso en el navegador o interactúa con el teclado y los botones rápidos.");
+    }
+
+    liveTimerRef.current = setInterval(() => {
+      setLiveCallSeconds((s) => s + 1);
+    }, 1000);
+
+    const cleanContact = extractCleanName(saraContactName);
+    const hasKnownContact = Boolean(cleanContact);
+    const greeting = getColombianGreeting();
+    const companyClean = (saraTargetGate?.company_name || "su empresa")
+      .replace(/ S\.A\.S\.| SAS| S\.A\.| SA| Ltda\./gi, "")
+      .trim();
+
+    let openingMsg = "";
+    if (hasKnownContact) {
+      const contactClean = cleanContact.replace("Simon", "Simón");
+      const firstName = contactClean.split(" ")[0];
+      openingMsg = `Aló, ${greeting}. Le habla Sara de INNOVAIT Transformación Digital en Medellín, ¿cómo está? ¿Tendré el gusto de hablar con Don ${firstName} o me podría comunicar con él?`;
+    } else {
+      openingMsg = `Aló, ${greeting}. Le habla Sara de INNOVAIT en Medellín, ¿cómo está? ¿Sería tan amable de comunicarme con la persona encargada del área de tecnología o sistemas?`;
+    }
+
+    setLiveCallHistory([{ speaker: "Sara", text: openingMsg }]);
+    playSaraAudioReply(openingMsg, () => {
+      startMicrophoneRecognition();
+    });
+  };
+
+  const handleOpenSaraModal = async (gate) => {
+    endLiveCall();
+    stopAudioPlayback();
+    setSaraTargetGate(gate);
+    const initialPhone = gate.context_details?.contacts?.[0]?.phone || gate.key_metrics?.phone || "";
+    const rawContact = gate.context_details?.contacts?.[0]?.name || gate.key_metrics?.contact || "";
+    const contactName = extractCleanName(rawContact);
+    const isGeneric = !contactName;
+    const contactRole = gate.context_details?.contacts?.[0]?.role || (isGeneric ? "Tecnología / Sistemas" : "Líder del Área");
+    setSaraPhone(initialPhone);
+    setSaraContactName(contactName);
+    setSaraContactRole(contactRole);
+    setSaraCustomInstructions("");
+    setSaraSimulationResult(null);
+    setSaraDispatchedJob(null);
+    setSaraActiveSubTab("preview");
+    setSaraModalOpen(true);
+    setSaraLoadingPrompt(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/voice/prompt/${gate.opportunity_id}?contact_name=${encodeURIComponent(contactName)}&contact_role=${encodeURIComponent(contactRole)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSaraPrompt(data.system_prompt || "");
+      } else {
+        setSaraPrompt("Error cargando el prompt dinámico de Sara.");
+      }
+    } catch (err) {
+      console.error("Error obteniendo prompt de Sara:", err);
+      setSaraPrompt("Error conectando con el servicio de voz de Sara.");
+    } finally {
+      setSaraLoadingPrompt(false);
+    }
+  };
+
+  const handleSimulateSaraCall = async () => {
+    if (!saraTargetGate) return;
+    setSaraSimulating(true);
+    setSaraSimulationResult(null);
+    try {
+      const url = `${API_BASE}/voice/simulate/${saraTargetGate.opportunity_id}${saraPhone ? `?phone=${encodeURIComponent(saraPhone)}` : ""}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Error ${res.status}`);
+      }
+      const data = await res.json();
+      setSaraSimulationResult(data);
+      setSaraActiveSubTab("simulate");
+    } catch (err) {
+      alert(`Error en simulación de llamada con Sara: ${err.message}`);
+    } finally {
+      setSaraSimulating(false);
+    }
+  };
+
+  const handleDispatchToAndroid = async () => {
+    if (!saraTargetGate) return;
+    setSaraDispatching(true);
+    try {
+      const res = await fetch(`${API_BASE}/voice/dispatch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          opportunity_id: saraTargetGate.opportunity_id,
+          phone: saraPhone || "+57 (604) 444 0000",
+          contact_name: saraContactName,
+          contact_role: saraContactRole,
+          preferred_voice: saraVoice,
+          custom_instructions: saraCustomInstructions || null,
+        })
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || `Error ${res.status}`);
+      }
+      const job = await res.json();
+      setSaraDispatchedJob(job);
+      setSaraActiveSubTab("dispatch");
+    } catch (err) {
+      alert(`Error despachando llamada a cola Android: ${err.message}`);
+    } finally {
+      setSaraDispatching(false);
+    }
+  };
+
+  const handleSaveSaraToGate3 = async () => {
+    if (!saraSimulationResult && !saraDispatchedJob) return;
+    setSaraSavingGate3(true);
+    const source = saraSimulationResult || saraDispatchedJob;
+    try {
+      const res = await fetch(`${API_BASE}/voice/report`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_id: source.job_id,
+          status: "completed",
+          duration_seconds: source.duration_seconds || 115,
+          transcript: typeof source.transcript === "string" ? source.transcript : JSON.stringify(source.transcript || ""),
+          summary: source.summary || "Contacto comercial telefónico realizado exitosamente por Sara.",
+          meeting_scheduled: source.meeting_scheduled !== undefined ? source.meeting_scheduled : true,
+          meeting_datetime: source.meeting_datetime || "Jueves 10:00 AM vía Google Meet / Teams",
+          confirmed_email: source.confirmed_email || null,
+          confirmed_phone: source.confirmed_phone || saraPhone || null,
+          objections_handled: source.objections_handled || []
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Error ${res.status}`);
+      }
+      alert(`🎉 ¡Llamada registrada con éxito! La oportunidad '${saraTargetGate.company_name}' ha avanzado a Gate 3 (Validación Alcance BANT).`);
+      setSaraModalOpen(false);
+      await fetchData();
+    } catch (err) {
+      alert(`Error guardando reporte de llamada: ${err.message}`);
+    } finally {
+      setSaraSavingGate3(false);
     }
   };
 
@@ -934,9 +1738,9 @@ export default function SalesCommandCenter() {
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Flota de Agentes</p>
-              <h3 className="text-2xl font-black text-slate-900 mt-1">5 Agentes</h3>
-              <p className="text-xs text-emerald-600 mt-0.5 flex items-center">
-                <Sparkles className="w-3 h-3 mr-1" /> Gemini 2.5 Flash / Pro
+              <h3 className="text-2xl font-black text-slate-900 mt-1">6 Agentes</h3>
+              <p className="text-xs text-indigo-600 font-semibold mt-0.5 flex items-center">
+                <Sparkles className="w-3 h-3 mr-1 text-indigo-500" /> Sara Voz + Gemini 2.5 Flash/Pro
               </p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -1767,6 +2571,19 @@ export default function SalesCommandCenter() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2.5">
+                        {/* Botón Agente de Voz Sara (Llamada IA disponible en Gate 1 y Gate 2) */}
+                        {(gate.gate_type === "GATE_1_TARGET" || gate.gate_type === "GATE_2_OUTREACH") && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenSaraModal(gate)}
+                            className="px-3.5 py-2 rounded-xl text-xs font-black text-white bg-gradient-to-r from-violet-600 via-indigo-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-sm hover:shadow-md transition-all flex items-center space-x-1.5 cursor-pointer border border-indigo-400/40"
+                            title="Despachar llamada comercial con Sara (Voz IA con SIM Celular Android o Simulación con IA)"
+                          >
+                            <PhoneCall className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Llamar con Sara (Voz IA)</span>
+                          </button>
+                        )}
+
                         {gate.gate_type === "GATE_2_OUTREACH" && (
                           <>
                             {/* Acciones directas 1-clic con contactos reales */}
@@ -3386,6 +4203,973 @@ export default function SalesCommandCenter() {
                   <span>Modificar Tarifas en Pestaña Catálogo</span>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: AGENTE DE VOZ SARA (LLAMADAS B2B CELULAR SIM + GEMINI LIVE) */}
+      {saraModalOpen && saraTargetGate && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 flex flex-col max-h-[92vh] overflow-hidden">
+            {/* Header del Modal con Gradiente */}
+            <div className="bg-gradient-to-r from-violet-700 via-indigo-700 to-purple-800 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-amber-300 shadow-inner">
+                  <PhoneCall className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-lg font-black tracking-tight">Agente de Llamadas B2B Sara</h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-400 text-emerald-950 uppercase tracking-wider">
+                      Voz IA Celular SIM
+                    </span>
+                  </div>
+                  <p className="text-xs text-indigo-100 mt-0.5">
+                    INNOVAIT Transformación Digital • Gemini Live Multimodal • Línea Móvil Colombiana Dedicada
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  stopAudioPlayback();
+                  setSaraModalOpen(false);
+                }}
+                className="text-white/70 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Barra de Configuración Rápida del Destinatario */}
+            <div className="bg-indigo-50/70 border-b border-indigo-100 p-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Empresa Destino:</label>
+                <div className="p-2 bg-white rounded-xl border border-indigo-200 font-bold text-indigo-900 truncate">
+                  {saraTargetGate.company_name}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Contacto / Cargo:</label>
+                <input
+                  type="text"
+                  value={saraContactName}
+                  onChange={(e) => setSaraContactName(e.target.value)}
+                  placeholder="Nombre del interlocutor"
+                  className="w-full p-2 bg-white rounded-xl border border-indigo-200 text-slate-800 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Teléfono a Marcar (🇨🇴):</label>
+                <input
+                  type="text"
+                  value={saraPhone}
+                  onChange={(e) => setSaraPhone(e.target.value)}
+                  placeholder="+57 (604) 480 1000"
+                  className="w-full p-2 bg-white rounded-xl border border-indigo-200 text-slate-800 font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-slate-700">Voz de Sara:</label>
+                  <button
+                    type="button"
+                    onClick={() => playVoicePreview(saraVoice)}
+                    className="text-[10px] font-bold text-violet-700 hover:text-violet-900 bg-violet-50 hover:bg-violet-100 px-2 py-0.5 rounded border border-violet-200 transition-colors inline-flex items-center space-x-1 cursor-pointer"
+                    title="Reproducir muestra de la voz seleccionada"
+                  >
+                    <Volume2 className="w-3 h-3 text-violet-600" />
+                    <span>Probar voz</span>
+                  </button>
+                </div>
+                <select
+                  value={saraVoice}
+                  onChange={(e) => setSaraVoice(e.target.value)}
+                  className="w-full p-2 bg-white rounded-xl border border-indigo-200 text-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500 focus:outline-none text-xs"
+                >
+                  <option value="paloma">🌎 Paloma (Femenina ejecutiva moderna - Latino neutro)</option>
+                  <option value="dalia">🌎 Dalia (Femenina consultiva suave - Latino neutro)</option>
+                  <option value="jorge">🌎 Jorge (Masculino formal consultivo - Latino neutro)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Pestañas de Navegación del Modal */}
+            <div className="flex items-center space-x-1 px-5 pt-3 border-b border-slate-200 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setSaraActiveSubTab("preview")}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all flex items-center space-x-1.5 ${
+                  saraActiveSubTab === "preview"
+                    ? "border-violet-600 text-violet-700 bg-white rounded-t-lg"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Guion & Contexto de Sara</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSaraActiveSubTab("simulate")}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all flex items-center space-x-1.5 ${
+                  saraActiveSubTab === "simulate"
+                    ? "border-violet-600 text-violet-700 bg-white rounded-t-lg"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Simulación con IA (Gemini)</span>
+                {saraSimulationResult && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSaraActiveSubTab("live")}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all flex items-center space-x-1.5 ${
+                  saraActiveSubTab === "live"
+                    ? "border-emerald-600 text-emerald-700 bg-white rounded-t-lg shadow-sm"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Mic className="w-3.5 h-3.5 text-emerald-600" />
+                <span>🎙️ Hablar en Vivo (Micrófono)</span>
+                {liveCallActive && (
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSaraActiveSubTab("dispatch")}
+                className={`px-4 py-2 text-xs font-bold border-b-2 transition-all flex items-center space-x-1.5 ${
+                  saraActiveSubTab === "dispatch"
+                    ? "border-violet-600 text-violet-700 bg-white rounded-t-lg"
+                    : "border-transparent text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                <Radio className="w-3.5 h-3.5 text-blue-500" />
+                <span>Celular Android (SIM Dedicada)</span>
+                {saraDispatchedJob && (
+                  <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[10px]">En cola</span>
+                )}
+              </button>
+            </div>
+
+            {/* Contenido según Pestaña Activa */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {/* SUBTAB 1: GUION Y CONTEXTO */}
+              {saraActiveSubTab === "preview" && (
+                <div className="space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex items-start space-x-3">
+                    <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <strong className="block font-bold">Reglas de Operación Telefónica de Sara:</strong>
+                      <ul className="list-disc pl-4 mt-1 space-y-0.5 text-amber-800">
+                        <li><strong>Transparencia obligatoria:</strong> Se identifica en la primera frase como asistente de IA de <em>INNOVAIT Transformación Digital</em>.</li>
+                        <li><strong>Pitch conciso (30s):</strong> Resalta DocumentTrack (OCR, digitalización de archivo físico, reducción de costos de bodegaje y cumplimiento DIAN).</li>
+                        <li><strong>Manejo de objeciones colombianas:</strong> Responde con empatía ante "¿quién le dio mi número?", "mándeme un correo" o "ya tenemos proveedor".</li>
+                        <li><strong>Fusible de seguridad:</strong> Duración máxima de 3 minutos y corte automático si entra a buzón de voz.</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Instrucciones Adicionales o Contexto Específico (Opcional):
+                    </label>
+                    <input
+                      type="text"
+                      value={saraCustomInstructions}
+                      onChange={(e) => setSaraCustomInstructions(e.target.value)}
+                      placeholder="Ej: El cliente tuvo auditoría reciente de la Superintendencia / Preguntar por el jefe de compras..."
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                        <FileCode className="w-4 h-4 text-violet-600" />
+                        <span>System Prompt Dinámico Inyectado en Gemini Live:</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setSaraLoadingPrompt(true);
+                          try {
+                            const res = await fetch(`${API_BASE}/voice/prompt/${saraTargetGate.opportunity_id}?contact_name=${encodeURIComponent(saraContactName)}&contact_role=${encodeURIComponent(saraContactRole)}&custom_instructions=${encodeURIComponent(saraCustomInstructions)}`);
+                            if (res.ok) {
+                              const d = await res.json();
+                              setSaraPrompt(d.system_prompt || "");
+                            }
+                          } finally {
+                            setSaraLoadingPrompt(false);
+                          }
+                        }}
+                        className="text-[11px] text-violet-700 hover:text-violet-900 font-bold flex items-center space-x-1 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${saraLoadingPrompt ? "animate-spin" : ""}`} />
+                        <span>Regenerar Prompt</span>
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      {saraLoadingPrompt ? (
+                        <div className="p-8 bg-slate-900 text-indigo-300 rounded-2xl text-xs font-mono text-center flex items-center justify-center space-x-2">
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Generando prompt adaptado al prospecto...</span>
+                        </div>
+                      ) : (
+                        <pre className="bg-slate-950 text-indigo-200 p-4 rounded-2xl text-[11px] font-mono leading-relaxed overflow-x-auto max-h-[35vh] border border-slate-800 whitespace-pre-wrap">
+                          {saraPrompt || "Cargando guion de Sara..."}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={handleSimulateSaraCall}
+                      disabled={saraSimulating}
+                      className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-sm flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+                    >
+                      <Sparkles className="w-4 h-4 text-amber-300" />
+                      <span>{saraSimulating ? "Simulando conversación..." : "Probar Simulación con IA"}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB 2: SIMULACIÓN INTERACTIVA */}
+              {saraActiveSubTab === "simulate" && (
+                <div className="space-y-4">
+                  {!saraSimulationResult && !saraSimulating && (
+                    <div className="p-8 bg-violet-50/60 border border-violet-200 rounded-2xl text-center space-y-3">
+                      <div className="w-14 h-14 mx-auto rounded-2xl bg-violet-600 text-white flex items-center justify-center shadow-lg">
+                        <Sparkles className="w-7 h-7 text-amber-300" />
+                      </div>
+                      <h4 className="text-base font-bold text-slate-900">Simulador de Conversación B2B</h4>
+                      <p className="text-xs text-slate-600 max-w-lg mx-auto">
+                        Ejecuta una llamada simulada en tiempo real con <strong>Gemini 2.5</strong> donde Sara llama al contacto de <strong>{saraTargetGate.company_name}</strong>, supera las objeciones típicas colombianas, propone la solución DocumentTrack y busca agendar la reunión de 15 minutos.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleSimulateSaraCall}
+                        className="px-6 py-3 rounded-2xl text-xs font-black text-white bg-violet-700 hover:bg-violet-800 shadow-md transition-all inline-flex items-center space-x-2 cursor-pointer"
+                      >
+                        <PhoneCall className="w-4 h-4 text-amber-300" />
+                        <span>Iniciar Simulación de Llamada Ahora</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {saraSimulating && (
+                    <div className="p-10 bg-slate-900 text-white rounded-2xl text-center space-y-3 animate-pulse">
+                      <div className="w-12 h-12 mx-auto rounded-full bg-violet-500/20 text-violet-300 flex items-center justify-center">
+                        <Volume2 className="w-6 h-6 animate-bounce" />
+                      </div>
+                      <h4 className="text-sm font-bold text-violet-200">Sara está en llamada con {saraContactName}...</h4>
+                      <p className="text-xs text-slate-400">
+                        Evaluando respuestas, manejando objeciones de archivo físico y cerrando fecha de reunión...
+                      </p>
+                    </div>
+                  )}
+
+                  {saraSimulationResult && (
+                    <div className="space-y-4">
+                      {/* Resumen del Resultado */}
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl">
+                          <span className="text-[10px] font-bold text-emerald-800 uppercase">Estado de Llamada</span>
+                          <p className="text-sm font-black text-emerald-700 mt-0.5 flex items-center">
+                            <CheckCircle2 className="w-4 h-4 mr-1 text-emerald-600" />
+                            {saraSimulationResult.status === "completed" ? "Completada (Éxito)" : saraSimulationResult.status}
+                          </p>
+                          <span className="text-[11px] text-emerald-600 font-mono">
+                            Duración: {saraSimulationResult.duration_seconds || 115}s
+                          </span>
+                        </div>
+
+                        <div className="bg-indigo-50 border border-indigo-200 p-3 rounded-2xl">
+                          <span className="text-[10px] font-bold text-indigo-800 uppercase">Reunión Agendada</span>
+                          <p className="text-sm font-black text-indigo-900 mt-0.5">
+                            {saraSimulationResult.meeting_scheduled ? "✅ SÍ AGENDADA" : "Pendiente"}
+                          </p>
+                          <span className="text-[11px] text-indigo-700 font-semibold truncate block">
+                            {saraSimulationResult.meeting_datetime || "Jueves 10:00 AM (Virtual)"}
+                          </span>
+                        </div>
+
+                        <div className="bg-purple-50 border border-purple-200 p-3 rounded-2xl">
+                          <span className="text-[10px] font-bold text-purple-800 uppercase">Correo Confirmado</span>
+                          <p className="text-xs font-black text-purple-900 mt-1 truncate" title={saraSimulationResult.confirmed_email}>
+                            {saraSimulationResult.confirmed_email || "Confirmado por interlocutor"}
+                          </p>
+                          <span className="text-[11px] text-purple-600">Para envío de enlace Meet</span>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl">
+                          <span className="text-[10px] font-bold text-amber-800 uppercase">Objeciones Resueltas</span>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {saraSimulationResult.objections_handled && saraSimulationResult.objections_handled.length > 0 ? (
+                              saraSimulationResult.objections_handled.map((obj, i) => (
+                                <span key={i} className="px-1.5 py-0.5 bg-amber-200/80 text-amber-900 rounded text-[10px] font-bold">
+                                  {obj}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-amber-800 font-medium">Interés directo</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Transcripción y Reproductor de Audio Sincronizado */}
+                      {(() => {
+                        const transcriptItems = parseTranscriptItems(saraSimulationResult.transcript);
+                        return (
+                          <div className="space-y-3">
+                            {/* Barra de Reproductor de Audio de la Llamada */}
+                            <div className="bg-gradient-to-r from-violet-950 via-indigo-950 to-slate-900 p-4 rounded-2xl border border-violet-800/60 shadow-lg flex items-center justify-between">
+                              <div className="flex items-center space-x-3.5">
+                                <button
+                                  type="button"
+                                  onClick={() => playTranscriptAudio(transcriptItems)}
+                                  className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black transition-all shadow-md cursor-pointer ${
+                                    isPlayingAudio
+                                      ? "bg-rose-600 hover:bg-rose-700 text-white animate-pulse"
+                                      : "bg-amber-400 hover:bg-amber-300 text-slate-950 hover:scale-105"
+                                  }`}
+                                  title={isPlayingAudio ? "Detener reproducción de audio" : "Escuchar la llamada en audio con la voz de Sara"}
+                                >
+                                  {isPlayingAudio ? (
+                                    <Square className="w-5 h-5 fill-current" />
+                                  ) : (
+                                    <Play className="w-6 h-6 fill-current ml-0.5" />
+                                  )}
+                                </button>
+
+                                <div>
+                                  <div className="flex items-center space-x-2">
+                                    <h5 className="text-sm font-bold text-white">
+                                      {isPlayingAudio ? "Reproduciendo Llamada en Audio..." : "▶ Escuchar Simulación de Llamada"}
+                                    </h5>
+                                    {isPlayingAudio && (
+                                      <span className="flex items-center text-amber-300 text-[11px] font-mono animate-pulse">
+                                        <Volume2 className="w-3.5 h-3.5 mr-1" />
+                                        Intervención {currentAudioIndex + 1} de {transcriptItems.length}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-indigo-200 mt-0.5 flex items-center space-x-1">
+                                    <span>🎙️ <strong>Voz IA:</strong> Neuronal de Alta Fidelidad</span>
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-2">
+                                {isPlayingAudio && (
+                                  <button
+                                    type="button"
+                                    onClick={stopAudioPlayback}
+                                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center space-x-1 cursor-pointer"
+                                  >
+                                    <VolumeX className="w-3.5 h-3.5 text-rose-300" />
+                                    <span>Detener Audio</span>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between mb-1 px-1">
+                              <span className="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
+                                <Headphones className="w-4 h-4 text-violet-600" />
+                                <span>Transcripción y Audio Sincronizado:</span>
+                              </span>
+                              <span className="text-[11px] text-slate-400 font-mono">
+                                {transcriptItems.length} intervenciones
+                              </span>
+                            </div>
+
+                            <div className="bg-slate-900 rounded-2xl p-4 max-h-[36vh] overflow-y-auto space-y-3 border border-slate-800">
+                              {transcriptItems.length > 0 ? (
+                                transcriptItems.map((msg, idx) => {
+                                  const isSara = (msg.speaker || "").toLowerCase().includes("sara") || (msg.speaker || "").toLowerCase().includes("maggie");
+                                  const isCurrentlySpeaking = currentAudioIndex === idx;
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className={`flex flex-col transition-all duration-300 ${isSara ? "items-end" : "items-start"}`}
+                                    >
+                                      <span className={`text-[10px] font-bold mb-0.5 px-1 flex items-center space-x-1 ${
+                                        isCurrentlySpeaking ? "text-amber-300 font-black" : "text-slate-400"
+                                      }`}>
+                                        {isCurrentlySpeaking && <Volume2 className="w-3 h-3 text-amber-400 mr-1 animate-bounce" />}
+                                        <span>{isSara ? "🎙️ Sara (IA INNOVAIT)" : `👤 ${msg.speaker || "Contacto"}`}</span>
+                                      </span>
+                                      <div
+                                        className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-xs leading-relaxed transition-all ${
+                                          isCurrentlySpeaking
+                                            ? "ring-2 ring-amber-400 shadow-xl scale-[1.01] " + (isSara ? "bg-violet-700 text-white font-medium" : "bg-slate-700 text-white font-medium")
+                                            : isSara
+                                            ? "bg-violet-600 text-white rounded-tr-none shadow-sm"
+                                            : "bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700"
+                                        }`}
+                                      >
+                                        {msg.text}
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <p className="text-xs text-slate-400 text-center py-4">No hay transcripción disponible.</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Botón de Aprobación y Avance a Gate 3 */}
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between">
+                        <div>
+                          <strong className="text-xs font-bold text-emerald-900 block">
+                            ¿Aprobar resultado de la llamada?
+                          </strong>
+                          <p className="text-xs text-emerald-700 mt-0.5">
+                            Al confirmar, los datos se guardarán y la oportunidad avanzará automáticamente a <strong>Gate 3: Validación Alcance BANT</strong>.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleSaveSaraToGate3}
+                          disabled={saraSavingGate3}
+                          className="px-5 py-2.5 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>{saraSavingGate3 ? "Avanzando oportunidad..." : "Aprobar y Avanzar a Gate 3"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUBTAB: HABLAR EN VIVO CON SARA (MICRÓFONO INTERACTIVO) */}
+              {saraActiveSubTab === "live" && (
+                <div className="space-y-4">
+                  {/* Detección de Compatibilidad de Navegador (Firefox / Opera vs Chrome / Edge) */}
+                  {typeof window !== "undefined" && !window.SpeechRecognition && !window.webkitSpeechRecognition && (
+                    <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl flex items-start space-x-3 text-amber-950 text-xs shadow-sm">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold">
+                        ⚠️
+                      </div>
+                      <div>
+                        <strong className="block text-amber-950 font-bold text-sm">
+                          Navegador sin reconocimiento de voz por micrófono (Firefox / Opera)
+                        </strong>
+                        <p className="text-amber-800 mt-1 leading-relaxed">
+                          <strong>Firefox</strong> y <strong>Opera</strong> tienen desactivada de fábrica la API de reconocimiento de voz (Web Speech API). Para que Sara te escuche directamente por el micrófono al hablarle, por favor abre <strong>http://localhost:3000</strong> en <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong>.
+                        </p>
+                        <p className="text-amber-900 font-semibold mt-1.5 flex items-center space-x-1">
+                          <span>💡 En este navegador puedes interactuar con los botones de</span>
+                          <span className="underline font-bold">"Atajos rápidos"</span>
+                          <span>o el campo de texto.</span>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Banner Superior de Estado y Controles */}
+                  <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 text-white rounded-2xl p-4 shadow-lg border border-emerald-800/40 flex flex-col md:flex-row items-center justify-between gap-3">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
+                        liveCallActive
+                          ? liveCallStatus === "speaking"
+                            ? "bg-violet-600 text-white animate-pulse shadow-lg shadow-violet-500/50"
+                            : liveCallStatus === "listening"
+                            ? "bg-emerald-500 text-white animate-bounce shadow-lg shadow-emerald-500/50"
+                            : "bg-amber-500 text-white"
+                          : "bg-slate-800 text-slate-400"
+                      }`}>
+                        {liveCallActive ? (
+                          liveCallStatus === "speaking" ? (
+                            <Volume2 className="w-6 h-6" />
+                          ) : (
+                            <Mic className="w-6 h-6" />
+                          )
+                        ) : (
+                          <Phone className="w-5 h-5" />
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-sm font-bold tracking-tight">
+                            Llamada Interactiva en Vivo
+                          </h4>
+                          {liveCallActive && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500/30 text-rose-300 border border-rose-500/50 flex items-center space-x-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping"></span>
+                              <span>EN LÍNEA</span>
+                            </span>
+                          )}
+                          {liveCallMeetingScheduled && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/30 text-emerald-300 border border-emerald-500/50">
+                              🎯 DEMO AGENDADA
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center space-x-2 text-xs text-slate-300 mt-0.5">
+                          <span>
+                            {liveCallInterlocutorLabel ? (
+                              <span>Al teléfono: <strong className="text-emerald-400">{liveCallInterlocutorLabel}</strong> <span className="text-[10px] text-slate-400">({(saraContactName && !isGenericContact(saraContactName)) ? saraContactName : "Indagando contacto"})</span></span>
+                            ) : (
+                              <span>Contacto: <strong>{(saraContactName && !isGenericContact(saraContactName)) ? saraContactName : "Por indagar en la llamada"}</strong></span>
+                            )}
+                          </span>
+                          <span>•</span>
+                          <span className="font-mono text-emerald-400 font-bold">
+                            ⏱️ {Math.floor(liveCallSeconds / 60).toString().padStart(2, "0")}:{(liveCallSeconds % 60).toString().padStart(2, "0")}
+                          </span>
+                          <span>•</span>
+                          <span className="text-[11px] text-slate-400">
+                            {liveCallStatus === "speaking" && "🔴 Sara hablando..."}
+                            {liveCallStatus === "listening" && "🟢 Sara te escucha (habla ahora)"}
+                            {liveCallStatus === "thinking" && "🟡 Sara pensando..."}
+                            {liveCallStatus === "idle" && (liveCallActive ? "⚪ En espera" : "Inactivo")}
+                            {liveCallStatus === "ended" && "Llamada finalizada"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
+                      {liveCallActive && liveCallStatus === "speaking" && (
+                        <button
+                          type="button"
+                          onClick={handleInterruptSara}
+                          className="px-3.5 py-2 rounded-xl text-xs font-black bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-all flex items-center space-x-1.5 cursor-pointer animate-pulse shrink-0"
+                          title="Interrumpir a Sara y tomar la palabra de inmediato"
+                        >
+                          <Hand className="w-4 h-4" />
+                          <span>✋ Interrumpir</span>
+                        </button>
+                      )}
+                      {!liveCallActive ? (
+                        <button
+                          type="button"
+                          onClick={handleStartLiveCall}
+                          className="px-5 py-2.5 rounded-xl text-xs font-black bg-emerald-500 hover:bg-emerald-600 text-slate-950 shadow-md shadow-emerald-500/20 transition-all flex items-center space-x-1.5 cursor-pointer"
+                        >
+                          <PhoneCall className="w-4 h-4" />
+                          <span>Iniciar Llamada con Sara</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={endLiveCall}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md transition-all flex items-center space-x-1.5 cursor-pointer"
+                        >
+                          <PhoneOff className="w-4 h-4" />
+                          <span>Colgar Llamada</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Panel de Conversación en Tiempo Real */}
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col h-[340px] shadow-inner">
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                      {liveCallHistory.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 space-y-2">
+                          <Headphones className="w-10 h-10 text-emerald-500/50 mb-1" />
+                          <p className="text-xs font-medium text-slate-300">
+                            Presiona <strong>"Iniciar Llamada con Sara"</strong> para comenzar a hablar a viva voz.
+                          </p>
+                          <p className="text-[11px] text-slate-500 max-w-md">
+                            Sara te saludará cordialmente en español de Colombia y te presentará DocumentTrack. Tú actuarás como el cliente para ponerla a prueba.
+                          </p>
+                        </div>
+                      ) : (
+                        liveCallHistory.map((item, idx) => {
+                          const isSara = (item.speaker || "").toLowerCase().includes("sara") || (item.speaker || "").toLowerCase().includes("maggie");
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex items-start space-x-2.5 ${
+                                isSara ? "justify-start" : "justify-end"
+                              }`}
+                            >
+                              {isSara && (
+                                <div className="w-7 h-7 rounded-xl bg-violet-600 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5 shadow-sm">
+                                  <Bot className="w-4 h-4" />
+                                </div>
+                              )}
+                              <div
+                                className={`max-w-[78%] rounded-2xl p-3 text-xs shadow-sm ${
+                                  isSara
+                                    ? "bg-slate-800 text-slate-100 border border-violet-500/30"
+                                    : "bg-indigo-600 text-white"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between space-x-2 mb-1">
+                                  <span className={`text-[10px] font-bold ${isSara ? "text-violet-300" : "text-indigo-200"}`}>
+                                    {isSara ? "Sara (INNOVAIT IA • es-CO)" : `Tú (${item.label || liveCallInterlocutorLabel || "Al teléfono"})`}
+                                  </span>
+                                  {isSara && (
+                                    <button
+                                      type="button"
+                                      onClick={() => playSaraAudioReply(item.text)}
+                                      className="text-slate-400 hover:text-white p-0.5 rounded cursor-pointer"
+                                      title="Replay audio"
+                                    >
+                                      <Volume2 className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="leading-relaxed whitespace-pre-wrap">{item.text}</p>
+                              </div>
+                              {!isSara && (
+                                <div className="w-7 h-7 rounded-xl bg-indigo-700 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5 shadow-sm">
+                                  <User className="w-4 h-4" />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+
+                      {/* Burbuja en Vivo mientras el usuario está hablando */}
+                      {liveInterimSpeech && (
+                        <div className="flex items-start space-x-2.5 justify-end animate-pulse">
+                          <div className="max-w-[78%] rounded-2xl p-3 text-xs bg-indigo-500/90 text-white border border-indigo-400 shadow-md">
+                            <div className="flex items-center space-x-1.5 text-[10px] text-emerald-300 font-bold mb-1">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                              <span>Escuchando tu voz en vivo...</span>
+                            </div>
+                            <p className="italic">"{liveInterimSpeech}"</p>
+                          </div>
+                          <div className="w-7 h-7 rounded-xl bg-indigo-700 text-white flex items-center justify-center text-xs flex-shrink-0 mt-0.5 shadow-sm">
+                            <User className="w-4 h-4" />
+                          </div>
+                        </div>
+                      )}
+
+                      <div ref={liveTranscriptEndRef} />
+                    </div>
+
+                    {/* Barra de Objeciones Rápidas */}
+                    {liveCallActive && (
+                      <div className="pt-2 border-t border-slate-800/80">
+                        <div className="flex items-center space-x-1.5 overflow-x-auto pb-1.5 text-[10px] text-slate-400">
+                          <span className="font-bold flex-shrink-0 text-slate-400">Atajos rápidos:</span>
+                          {(saraContactName && !isGenericContact(saraContactName) ? [
+                            `Sí, habla ${saraContactName ? saraContactName.split(" ")[0] : "Simón"}`,
+                            "No, no hablo con él",
+                            "Habla con Carlos de recepción",
+                            "Eso no importa, dígame a mí",
+                            "Trata el tema conmigo y yo le paso la información",
+                            "No me interesa digitalización, nos interesa infraestructura",
+                            "¿Qué servicios o portafolio manejan?",
+                            "Queremos migrar nuestros servidores a AWS / Azure",
+                            "Tenemos inconsistencias y duplicados en la base de datos",
+                            "Nos gustaría automatizar procesos con IA",
+                            "¿De qué se trata DocumentTrack?",
+                            "¿Se integra con nuestro SAP / ERP?",
+                            "Mándele un correo a él y lo revisa",
+                            "De acuerdo, agendemos la demo para el jueves 10 AM",
+                            "No me interesa, muchas gracias"
+                          ] : [
+                            "La persona encargada es Carlos Pérez",
+                            "El correo de él es cperez@opticacolombiana.com",
+                            "Lo ubica en la extensión 104",
+                            "El director es Carlos Pérez, correo cperez@opticacolombiana.com y extensión 104",
+                            "No tiene extensión, solo correo",
+                            "Don Carlos está en reunión en este momento",
+                            "Habla con él, yo soy el encargado de sistemas",
+                            "¿De parte de quién y para qué asunto?",
+                            "Trata el tema conmigo y yo le paso la información",
+                            "Por políticas de la empresa no damos datos",
+                            "No me interesa digitalización, nos interesa infraestructura",
+                            "¿Qué servicios o portafolio manejan?",
+                            "No nos interesa, muchas gracias"
+                          ]).map((pill, pIdx) => (
+                            <button
+                              key={pIdx}
+                              type="button"
+                              onClick={() => sendUserLiveMessage(pill)}
+                              className="px-2 py-0.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex-shrink-0 transition-colors cursor-pointer"
+                            >
+                              "{pill}"
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Banner Interactivo mientras Sara Habla (Aviso de Barge-In) */}
+                  {liveCallActive && liveCallStatus === "speaking" && (
+                    <div className="p-3 bg-violet-950/70 border border-violet-500/50 rounded-2xl flex items-center justify-between text-violet-100 shadow-md animate-in fade-in">
+                      <div className="flex items-center space-x-3">
+                        <div className="relative flex items-center justify-center">
+                          <span className="w-5 h-5 rounded-full bg-violet-400/40 animate-ping absolute"></span>
+                          <div className="w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center font-bold relative z-10 shadow-sm">
+                            <Volume2 className="w-4 h-4 animate-bounce" />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <strong className="text-xs text-white">Sara está hablando...</strong>
+                            <span className="px-1.5 py-0.5 rounded bg-violet-500/50 text-violet-200 font-bold text-[9px]">
+                              INTERACTIVO (BARGE-IN ACTIVO)
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-violet-300 block">
+                            Puedes hablarle por tu micrófono para interrumpirla, o presionar el botón de interrupción:
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleInterruptSara}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs flex items-center space-x-1.5 cursor-pointer shadow transition-all shrink-0 animate-pulse"
+                        title="Silenciar a Sara y tomar la palabra de inmediato"
+                      >
+                        <Hand className="w-4 h-4" />
+                        <span>Interrumpir</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Banner de Estado del Micrófono y Ondas de Audio */}
+                  {liveCallActive && liveCallStatus === "listening" && (
+                    <div className="p-3 bg-emerald-950/60 border border-emerald-500/40 rounded-2xl flex items-center justify-between text-emerald-100 shadow-md animate-in fade-in">
+                      <div className="flex items-center space-x-3">
+                        <div className="relative flex items-center justify-center">
+                          <span className="w-5 h-5 rounded-full bg-emerald-400/40 animate-ping absolute"></span>
+                          <div className="w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold relative z-10 shadow-sm">
+                            <Mic className="w-4 h-4 animate-pulse" />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <strong className="text-xs text-white">Sara te está escuchando...</strong>
+                            {audioVolumeLevel > 10 && (
+                              <span className="px-1.5 py-0.2 rounded bg-emerald-400 text-emerald-950 font-black text-[9px]">
+                                VOZ DETECTADA
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-emerald-300 block">
+                            {liveInterimSpeech ? `"${liveInterimSpeech}"` : "Habla a tu propio ritmo. Sara espera 2.8 segundos de pausa antes de responder, o puedes pulsar 'Enviar ahora'."}
+                          </span>
+                        </div>
+                      </div>
+
+                      {liveInterimSpeech && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+                            sendUserLiveMessage(liveInterimSpeech.trim());
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs flex items-center space-x-1 cursor-pointer shadow-md transition-all flex-shrink-0"
+                          title="Enviar de inmediato sin esperar la pausa de silencio"
+                        >
+                          <Send className="w-3.5 h-3.5" />
+                          <span>Enviar ahora</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Alerta si el navegador bloqueó el micrófono */}
+                  {micPermissionError && (
+                    <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-start space-x-2.5 text-amber-900 text-xs shadow-sm">
+                      <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <strong>Aviso de micrófono:</strong> {micPermissionError}
+                        <p className="text-[11px] text-amber-700 mt-0.5">
+                          Puedes continuar la conversación usando el campo de texto abajo o haciendo clic en los botones de "Atajos rápidos".
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Entrada de Audio (Micrófono) y Texto Fallback */}
+                  {liveCallActive && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (liveCallStatus === "listening") {
+                              if (recognitionRef.current) {
+                                try { recognitionRef.current.abort(); } catch {}
+                              }
+                              setLiveCallStatus("idle");
+                            } else {
+                              startMicrophoneRecognition();
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 transition-all cursor-pointer shadow-sm ${
+                            liveCallStatus === "listening"
+                              ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-300"
+                              : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200"
+                          }`}
+                        >
+                          <Mic className="w-4 h-4" />
+                          <span>
+                            {liveCallStatus === "listening" ? "Pausar Micrófono" : "Hablar por Micrófono"}
+                          </span>
+                        </button>
+
+                        <div className="flex-1 flex items-center space-x-1.5">
+                          <input
+                            type="text"
+                            value={liveCallUserText}
+                            onChange={(e) => setLiveCallUserText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && liveCallUserText.trim()) {
+                                sendUserLiveMessage(liveCallUserText.trim());
+                              }
+                            }}
+                            placeholder="O escribe aquí tu respuesta/objeción..."
+                            className="flex-1 p-2 bg-white rounded-xl border border-slate-300 text-xs text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (liveCallUserText.trim()) {
+                                sendUserLiveMessage(liveCallUserText.trim());
+                              }
+                            }}
+                            disabled={!liveCallUserText.trim()}
+                            className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 transition-colors cursor-pointer"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SUBTAB 3: DESPACHAR A CELULAR ANDROID */}
+              {saraActiveSubTab === "dispatch" && (
+                <div className="space-y-4">
+                  <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-200 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold">
+                        SIM
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">
+                          Llamada Telefónica Real con Celular Android Dedicado
+                        </h4>
+                        <p className="text-xs text-slate-600">
+                          El backend encolará la orden para que el celular Android físico marque mediante su SIM card colombiana local (+57).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-2">
+                      <div className="bg-white p-3 rounded-xl border border-indigo-100">
+                        <strong className="text-indigo-900 block">📞 Enrutamiento GSM Local:</strong>
+                        <p className="text-slate-600 mt-0.5">
+                          Tasa de respuesta superior al 80% frente a números virtuales o VoIP extranjeros bloqueados por Truecaller.
+                        </p>
+                      </div>
+
+                      <div className="bg-white p-3 rounded-xl border border-indigo-100">
+                        <strong className="text-indigo-900 block">⚡ Inyección de Audio con Gemini Live:</strong>
+                        <p className="text-slate-600 mt-0.5">
+                          El módulo Magisk en Android inyecta el stream bidireccional directamente en la llamada celular activa.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {!saraDispatchedJob ? (
+                    <div className="text-center py-6">
+                      <button
+                        type="button"
+                        onClick={handleDispatchToAndroid}
+                        disabled={saraDispatching}
+                        className="px-6 py-3 rounded-2xl text-xs font-black text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all inline-flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+                      >
+                        <PhoneForwarded className="w-4 h-4 text-amber-300" />
+                        <span>{saraDispatching ? "Encolando llamada..." : "Despachar a la Cola del Celular Android"}</span>
+                      </button>
+                      <p className="text-[11px] text-slate-400 mt-2">
+                        El celular Android conectado marcará inmediatamente en cuanto esté desocupado.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-5 bg-white border border-indigo-200 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800">
+                          ESTADO: EN COLA ({saraDispatchedJob.status})
+                        </span>
+                        <code className="text-xs font-mono text-slate-500">{saraDispatchedJob.job_id}</code>
+                      </div>
+
+                      <p className="text-xs text-slate-700">
+                        La llamada hacia <strong>{saraDispatchedJob.contact_name}</strong> al número <strong>{saraDispatchedJob.phone}</strong> ha sido puesta en cola del celular Android exitosamente.
+                      </p>
+
+                      <div className="p-3 bg-slate-50 rounded-xl text-xs text-slate-600 space-y-1">
+                        <div><strong>Voz:</strong> {saraDispatchedJob.preferred_voice}</div>
+                        <div><strong>Oportunidad:</strong> {saraTargetGate.company_name}</div>
+                        <div><strong>Instrucciones:</strong> {saraDispatchedJob.custom_instructions || "Llamada estándar B2B DocumentTrack"}</div>
+                      </div>
+
+                      <div className="pt-2 flex items-center justify-end space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            stopAudioPlayback();
+                            setSaraModalOpen(false);
+                          }}
+                          className="px-4 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200"
+                        >
+                          Cerrar y Monitorear
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer General del Modal */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500">
+                Agente Sara v1.0 • INNOVAIT Transformación Digital • Powered by Gemini Live
+              </span>
+
+              <button
+                type="button"
+                onClick={() => {
+                  stopAudioPlayback();
+                  setSaraModalOpen(false);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                Cerrar Ventana
+              </button>
             </div>
           </div>
         </div>

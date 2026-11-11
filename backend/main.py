@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.api.v1.opportunities import router as opportunities_router
 from app.api.v1.gates import router as gates_router
 from app.api.v1.catalog import router as catalog_router
+from app.api.v1.voice import router as voice_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,6 +46,7 @@ app.add_middleware(
 app.include_router(opportunities_router, prefix=settings.API_V1_PREFIX)
 app.include_router(gates_router, prefix=settings.API_V1_PREFIX)
 app.include_router(catalog_router, prefix=settings.API_V1_PREFIX)
+app.include_router(voice_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.exception_handler(Exception)

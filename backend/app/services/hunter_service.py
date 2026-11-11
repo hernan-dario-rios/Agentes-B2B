@@ -103,9 +103,9 @@ VERIFIED_COLOMBIAN_REGISTRY: List[Dict[str, Any]] = [
     {
         "company_name": "Transportes Saferbo S.A.",
         "nit": "890.905.071-8",
-        "website": "https://www.saferbo.com",
+        "website": "https://www.thesaferbo.com",
         "city": "Medellín y Antioquia",
-        "address": "Carrera 42 # 27A - 150, Autopista Sur, Itagüí, Antioquia",
+        "address": "Calle 7 Sur # 42 - 70, Piso 12, Torre Saferbo, Medellín, Antioquia",
         "sector": "Transporte de Carga y Logística",
         "estimated_size": "1,200 empleados",
         "key_driver": "Gestión de archivo descentralizado de remisiones físicas de transporte de carga intermunicipal y paquetería.",
@@ -114,16 +114,16 @@ VERIFIED_COLOMBIAN_REGISTRY: List[Dict[str, Any]] = [
             {
                 "name": "Juan Camilo Gómez",
                 "role": "Director de Tecnología y Sistemas",
-                "email": "servicioalcliente@saferbo.com",
-                "phone": "+57 (604) 448 4880",
+                "email": "saferbobox@saferbo.com",
+                "phone": "+57 (604) 605 4964",
                 "linkedin_url": "https://www.linkedin.com/company/transportes-saferbo/",
                 "status": "PENDING_CONTACT"
             },
             {
                 "name": "Álvaro Sierra",
                 "role": "Gerente General",
-                "email": "notificaciones@saferbo.com",
-                "phone": "+57 314 888 8880",
+                "email": "saferbobox@saferbo.com",
+                "phone": "+57 (604) 369 6060",
                 "linkedin_url": "https://www.linkedin.com/company/transportes-saferbo/",
                 "status": "PENDING_CONTACT"
             }
@@ -310,7 +310,7 @@ VERIFIED_COLOMBIAN_REGISTRY: List[Dict[str, Any]] = [
         "nit": "890.903.937-2",
         "website": "https://www.coofinep.com",
         "city": "Medellín y Antioquia",
-        "address": "Calle 50 # 46 - 36, Edificio Coofinep, Medellín, Antioquia",
+        "address": "Carrera 43A # 14 - 57, Piso 11, Medellín, Antioquia",
         "sector": "Cooperativas y Sector Financiero",
         "estimated_size": "450 empleados",
         "key_driver": "Necesidad de desmaterialización de carpetas de libranza y saneamiento de registros duplicados de asociados.",
@@ -319,27 +319,27 @@ VERIFIED_COLOMBIAN_REGISTRY: List[Dict[str, Any]] = [
             {
                 "name": "Wilson Arboleda",
                 "role": "Jefe de Informática y Tecnología",
-                "email": "coofinep@coofinep.com.co",
-                "phone": "+57 (604) 444 2663",
+                "email": "info@coofinep.com",
+                "phone": "+57 (604) 511 4688",
                 "linkedin_url": "https://www.linkedin.com/company/coofinep/",
                 "status": "PENDING_CONTACT"
             },
             {
                 "name": "Jorge Alberto Pérez",
                 "role": "Gerente General",
-                "email": "servicioasociado@coofinep.com.co",
-                "phone": "+57 316 444 2663",
+                "email": "servicioasociado@coofinep.com",
+                "phone": "+57 (604) 444 2663",
                 "linkedin_url": "https://www.linkedin.com/company/coofinep/",
                 "status": "PENDING_CONTACT"
             }
         ]
     },
     {
-        "company_name": "Cooperativa Financiera Belén",
+        "company_name": "Cooperativa Belén Ahorro y Crédito (Cobelén)",
         "nit": "890.905.418-4",
-        "website": "https://www.cooperativabelen.com.co",
+        "website": "https://www.cobelen.com",
         "city": "Medellín y Antioquia",
-        "address": "Calle 30 # 76 - 47, Belén, Medellín, Antioquia",
+        "address": "Calle 30A # 77 - 60, Medellín, Antioquia",
         "sector": "Cooperativas y Sector Financiero",
         "estimated_size": "320 empleados",
         "key_driver": "Custodia y consulta rápida de pagarés en bodegas físicas y modernización hacia almacenamiento seguro en la nube.",
@@ -348,17 +348,17 @@ VERIFIED_COLOMBIAN_REGISTRY: List[Dict[str, Any]] = [
             {
                 "name": "Jorge Restrepo",
                 "role": "Líder de Sistemas e Infraestructura",
-                "email": "contacto@cooperativabelen.com.co",
-                "phone": "+57 (604) 341 0100",
-                "linkedin_url": "https://www.linkedin.com/company/cooperativa-financiera-de-belen/",
+                "email": "servicioalasociado@cobelen.com",
+                "phone": "+57 (604) 444 5100",
+                "linkedin_url": "https://www.linkedin.com/company/cobelen/",
                 "status": "PENDING_CONTACT"
             },
             {
                 "name": "Claudia Marcela Ramírez",
                 "role": "Gerente General",
-                "email": "servicioalcliente@cooperativabelen.com.co",
-                "phone": "+57 312 870 0100",
-                "linkedin_url": "https://www.linkedin.com/company/cooperativa-financiera-de-belen/",
+                "email": "pagos.cartera@cobelen.com",
+                "phone": "+57 (604) 345 5100",
+                "linkedin_url": "https://www.linkedin.com/company/cobelen/",
                 "status": "PENDING_CONTACT"
             }
         ]

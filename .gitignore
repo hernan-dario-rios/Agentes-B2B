@@ -82,3 +82,10 @@ terraform.rc
 *.pem
 *.key
 *.pub
+
+# Audio Cache and ephemeral voice data
+backend/app/knowledge/tts_cache/
+**/tts_cache/
+
+# Local testing and scratch scripts
+scratch/

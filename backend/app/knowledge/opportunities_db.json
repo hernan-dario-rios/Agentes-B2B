@@ -180,10 +180,10 @@
     },
     "contacts": [
       {
-        "name": "Simon Henao Giraldo",
-        "role": "Gerente General",
-        "email": "simon.henao@opticacolombiana.com",
-        "linkedin_url": "https://www.linkedin.com/company/optica-colombiana/",
+        "name": "",
+        "role": "",
+        "email": "",
+        "linkedin_url": "",
         "phone": "+57 (601) 326 4500",
         "status": "PENDING_CONTACT"
       }
@@ -198,10 +198,18 @@
         "Estimados señores Óptica Colombiana, confirmamos recepción de nuestra comunicación previa.",
         "¿Sería posible coordinar un breve espacio virtual con el área de TI?"
       ],
-      "sent_at": null,
-      "prospect_response": null
+      "sent_at": "2026-11-09T15:49:27.330650Z",
+      "prospect_response": "Llamada telefónica realizada por Sara (COMPLETED, 95s). Resumen: Simulación completada en modo heurístico local."
     },
-    "discovery": null,
+    "discovery": {
+      "budget": null,
+      "authority": "Simón Henao Giraldo (Gerente General)",
+      "need": "Interés validado en demostración de DocumentTrack durante llamada con Sara: Simulación completada en modo heurístico local.",
+      "timeline": "Próximo martes 9:00 AM",
+      "technical_requirements": [],
+      "critical_success_factors": [],
+      "meeting_transcript_summary": "Transcripción de llamada con Sara (95s):\nMaggie: Buenos días, le habla Sara de INNOVAIT Transformación Digital...\nCliente: Con gusto, me interesa conocer DocumentTrack."
+    },
     "solution_proposal": null,
     "contract": null,
     "gate_history": [
@@ -216,7 +224,7 @@
     ],
     "last_human_feedback": null,
     "created_at": "2026-10-28T15:30:00Z",
-    "updated_at": "2026-10-29T17:27:21.452862Z"
+    "updated_at": "2026-11-11T14:16:05.198428Z"
   },
   {
     "opportunity_id": "opp_20261029155940_003",
@@ -275,10 +283,10 @@
   {
     "opportunity_id": "opp_20261029155940_004",
     "company_name": "Transportes Saferbo S.A.",
-    "website": "https://www.saferbo.com",
+    "website": "https://www.thesaferbo.com",
     "country": "Colombia",
     "tax_id": "890.905.071-8",
-    "address": "Carrera 42 # 27A - 150, Autopista Sur, Itagüí, Antioquia",
+    "address": "Calle 7 Sur # 42 - 70, Piso 12, Torre Saferbo, Medellín, Antioquia",
     "target_services": [],
     "stage": "WAITING_HUMAN_APPROVAL",
     "current_gate": "GATE_1_TARGET",
@@ -303,17 +311,17 @@
       {
         "name": "Juan Camilo Gómez",
         "role": "Director de Tecnología y Sistemas",
-        "email": "servicioalcliente@saferbo.com",
-        "linkedin_url": "https://www.linkedin.com/company/transportes-saferbo/",
-        "phone": "+57 (604) 448 4880",
+        "email": "saferbobox@saferbo.com",
+        "linkedin_url": "https://www.linkedin.com/company/saferbo/",
+        "phone": "+57 (604) 605 4964",
         "status": "PENDING_CONTACT"
       },
       {
         "name": "Álvaro Sierra",
         "role": "Gerente General",
-        "email": "notificaciones@saferbo.com",
-        "linkedin_url": "https://www.linkedin.com/company/transportes-saferbo/",
-        "phone": "+57 314 888 8880",
+        "email": "saferbobox@saferbo.com",
+        "linkedin_url": "https://www.linkedin.com/company/saferbo/",
+        "phone": "+57 (604) 369 6060",
         "status": "PENDING_CONTACT"
       }
     ],
@@ -656,10 +664,10 @@
     "website": "https://www.coofinep.com",
     "country": "Colombia",
     "tax_id": "890.903.937-2",
-    "address": "Calle 50 # 46 - 36, Edificio Coofinep, Medellín, Antioquia",
+    "address": "Carrera 43A # 14 - 57, Piso 11, Medellín, Antioquia",
     "target_services": [],
     "stage": "WAITING_HUMAN_APPROVAL",
-    "current_gate": "GATE_1_TARGET",
+    "current_gate": "GATE_2_OUTREACH",
     "icp_data": {
       "industry": "Servicios Financieros / Logística",
       "size_employees": 320,
@@ -681,21 +689,30 @@
       {
         "name": "Wilson Arboleda",
         "role": "Jefe de Informática y Tecnología",
-        "email": "coofinep@coofinep.com.co",
+        "email": "info@coofinep.com",
         "linkedin_url": "https://www.linkedin.com/company/coofinep/",
-        "phone": "+57 (604) 444 2663",
+        "phone": "+57 (604) 511 4688",
         "status": "PENDING_CONTACT"
       },
       {
         "name": "Jorge Alberto Pérez",
         "role": "Gerente General",
-        "email": "servicioasociado@coofinep.com.co",
+        "email": "servicioasociado@coofinep.com",
         "linkedin_url": "https://www.linkedin.com/company/coofinep/",
-        "phone": "+57 316 444 2663",
+        "phone": "+57 (604) 444 2663",
         "status": "PENDING_CONTACT"
       }
     ],
-    "outreach": null,
+    "outreach": {
+      "channel": "email",
+      "subject": "INNOVAIT | Digitalizacin inteligente de archivo fsico y custodia de pagars para Coofinep",
+      "body_markdown": "Estimado Wilson,\n\nEn el sector cooperativo financiero, la custodia y consulta de expedientes de crdito y pagars en papel suele representar altos costos mensuales de bodegaje y riesgo de prdida de trazabilidad.\n\nEn INNOVAIT Transformacin Digital implementamos DocumentTrack: plataforma de digitalizacin y extraccin con OCR inteligente asistido por IA, integrando la validacin documental con sus sistemas de cartera.\n\nTendra 15 minutos este jueves o viernes para presentarle una demostracin breve adaptada a Coofinep?\n\nCordialmente,\nEquipo Comercial INNOVAIT Transformacin Digital",
+      "whatsapp_message": "Hola Wilson, un saludo especial. Te contacto de INNOVAIT Transformacin Digital. Vemos una oportunidad clara para Coofinep en optimizar la custodia de expedientes y pagars fsicos mediante digitalizacin OCR con IA (DocumentTrack). Cundo tendras 15 minutos para una breve demo virtual?",
+      "call_script": "Buenos das, le habla Sara de INNOVAIT Transformacin Digital. El motivo de mi llamada con el rea de tecnologa de Coofinep es presentarles nuestra solucin DocumentTrack para reduccin de bodegaje de papel y OCR de expedientes de crdito...",
+      "followup_variants": [],
+      "sent_at": null,
+      "prospect_response": null
+    },
     "discovery": null,
     "solution_proposal": null,
     "contract": null,
@@ -706,11 +723,11 @@
   },
   {
     "opportunity_id": "opp_20261104153801_012",
-    "company_name": "Cooperativa Financiera Belén",
-    "website": "https://www.cooperativabelen.com.co",
+    "company_name": "Cooperativa Belén Ahorro y Crédito (Cobelén)",
+    "website": "https://www.cobelen.com",
     "country": "Colombia",
     "tax_id": "890.905.418-4",
-    "address": "Calle 30 # 76 - 47, Belén, Medellín, Antioquia",
+    "address": "Calle 30A # 77 - 60, Medellín, Antioquia",
     "target_services": [],
     "stage": "WAITING_HUMAN_APPROVAL",
     "current_gate": "GATE_1_TARGET",
@@ -735,17 +752,17 @@
       {
         "name": "Jorge Restrepo",
         "role": "Líder de Sistemas e Infraestructura",
-        "email": "contacto@cooperativabelen.com.co",
-        "linkedin_url": "https://www.linkedin.com/company/cooperativa-financiera-de-belen/",
-        "phone": "+57 (604) 341 0100",
+        "email": "servicioalasociado@cobelen.com",
+        "linkedin_url": "https://www.linkedin.com/company/cobelen/",
+        "phone": "+57 (604) 444 5100",
         "status": "PENDING_CONTACT"
       },
       {
         "name": "Claudia Marcela Ramírez",
         "role": "Gerente General",
-        "email": "servicioalcliente@cooperativabelen.com.co",
-        "linkedin_url": "https://www.linkedin.com/company/cooperativa-financiera-de-belen/",
-        "phone": "+57 312 870 0100",
+        "email": "pagos.cartera@cobelen.com",
+        "linkedin_url": "https://www.linkedin.com/company/cobelen/",
+        "phone": "+57 (604) 345 5100",
         "status": "PENDING_CONTACT"
       }
     ],
