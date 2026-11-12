@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     API_V1_PREFIX: str = "/api/v1"
     
+    # Auth & JWT Settings
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "innovait-b2b-sales-hitl-jwt-secret-2026")
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 días
+    
     # LLM Settings
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     DEFAULT_FAST_MODEL: str = "gemini-2.5-flash"

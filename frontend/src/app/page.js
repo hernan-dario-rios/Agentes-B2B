@@ -55,13 +55,196 @@ import {
   PhoneForwarded,
   Play,
   Square,
-  Pause
+  Pause,
+  Lock,
+  Key,
+  LogOut,
+  QrCode,
+  EyeOff,
+  Smartphone
 } from "lucide-react";
 
 // Endpoint de API con Reverse Proxy nativo de Next.js (Mismo origen / sin bloqueos de puerto 8000 ni CORS)
 const API_BASE = "/api/v1";
 
 export default function SalesCommandCenter() {
+  // === Estados de Autenticación & 2FA ===
+  const [authToken, setAuthToken] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  // Estados de Formulario de Login & 2FA
+  const [loginUsername, setLoginUsername] = useState("admin");
+  const [loginPassword, setLoginPassword] = useState("AdminPassword2026!");
+  const [showPassword, setShowPassword] = useState(false);
+  const [authStep, setAuthStep] = useState("credentials"); // "credentials" | "2fa_setup" | "2fa_verify"
+  const [authTempToken, setAuthTempToken] = useState("");
+  const [authQrCodeUrl, setAuthQrCodeUrl] = useState("");
+  const [authTotpSecret, setAuthTotpSecret] = useState("");
+  const [authTotpCode, setAuthTotpCode] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [secretCopied, setSecretCopied] = useState(false);
+
+  // Helper para peticiones autenticadas con auto-logout en 401
+  const authFetch = async (url, options = {}) => {
+    const token = authToken || (typeof window !== "undefined" ? localStorage.getItem("innovait_auth_token") : null);
+    const headers = { ...(options.headers || {}) };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    const res = await fetch(url, { ...options, headers });
+    if (res.status === 401) {
+      handleLogout();
+    }
+    return res;
+  };
+
+  // Verificación de sesión al iniciar
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("innovait_auth_token") : null;
+    if (!token) {
+      setAuthChecking(false);
+      return;
+    }
+    fetch(`${API_BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error("Sesión inválida o expirada");
+      })
+      .then((userData) => {
+        setAuthToken(token);
+        setCurrentUser(userData);
+      })
+      .catch(() => {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("innovait_auth_token");
+        }
+        setAuthToken(null);
+        setCurrentUser(null);
+      })
+      .finally(() => {
+        setAuthChecking(false);
+      });
+  }, []);
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("innovait_auth_token");
+    }
+    setAuthToken(null);
+    setCurrentUser(null);
+    setAuthStep("credentials");
+    setAuthTotpCode("");
+    setAuthError("");
+  };
+
+  const handleLoginSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Error al autenticar credenciales");
+      }
+      if (data.status === "requires_2fa") {
+        setAuthTempToken(data.temp_token);
+        setAuthTotpCode("");
+        setAuthStep("2fa_verify");
+      } else if (data.status === "requires_2fa_setup") {
+        setAuthTempToken(data.temp_token);
+        setAuthQrCodeUrl(data.qr_code_url || "");
+        setAuthTotpSecret(data.two_factor_secret || "");
+        setAuthTotpCode("");
+        setAuthStep("2fa_setup");
+      } else if (data.status === "authenticated" && data.access_token) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("innovait_auth_token", data.access_token);
+        }
+        setAuthToken(data.access_token);
+        setCurrentUser(data.user);
+      }
+    } catch (err) {
+      setAuthError(err.message || "Error al conectar con el servidor de autenticación");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handle2FAVerifySubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setAuthError("");
+    if (!authTotpCode || authTotpCode.length < 6) {
+      setAuthError("Ingrese los 6 dígitos del código de autenticación");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/2fa/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ temp_token: authTempToken, code: authTotpCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Código de seguridad 2FA inválido");
+      }
+      if (data.status === "authenticated" && data.access_token) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("innovait_auth_token", data.access_token);
+        }
+        setAuthToken(data.access_token);
+        setCurrentUser(data.user);
+        setAuthStep("credentials");
+      }
+    } catch (err) {
+      setAuthError(err.message || "Error al verificar código 2FA");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handle2FASetupSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setAuthError("");
+    if (!authTotpCode || authTotpCode.length < 6) {
+      setAuthError("Ingrese los 6 dígitos generados en su aplicación autenticadora");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/2fa/setup-confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ temp_token: authTempToken, code: authTotpCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Código incorrecto al confirmar vinculación");
+      }
+      if (data.status === "authenticated" && data.access_token) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("innovait_auth_token", data.access_token);
+        }
+        setAuthToken(data.access_token);
+        setCurrentUser(data.user);
+        setAuthStep("credentials");
+      }
+    } catch (err) {
+      setAuthError(err.message || "Error al confirmar enrolamiento 2FA");
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
   const [activeTab, setActiveTab] = useState("inbox"); // "inbox" | "kanban" | "catalog"
   const [pendingGates, setPendingGates] = useState([]);
   const [opportunities, setOpportunities] = useState([]);
@@ -680,7 +863,12 @@ export default function SalesCommandCenter() {
           return;
         }
         if (err.error === "not-allowed" || err.error === "service-not-allowed") {
-          setMicPermissionError("El navegador bloqueó el acceso al micrófono. Por favor permite el micrófono en el candado de la URL.");
+          const isInsecure = typeof window !== "undefined" && !window.isSecureContext;
+          if (isInsecure) {
+            setMicPermissionError("Google Chrome y Edge bloquean el micrófono en conexiones HTTP remotas sin SSL. Para habilitarlo en pruebas, abre chrome://flags/#unsafely-treat-insecure-origin-as-secure y agrega esta IP de AWS, o interactúa con los botones rápidos y campo de texto.");
+          } else {
+            setMicPermissionError("El navegador bloqueó el acceso al micrófono. Por favor permite el micrófono en los permisos de la URL.");
+          }
           setLiveCallStatus("idle");
         }
       };
@@ -727,7 +915,7 @@ export default function SalesCommandCenter() {
     setLiveCallStatus("thinking");
 
     try {
-      const res = await fetch(`${API_BASE}/voice/chat-turn`, {
+      const res = await authFetch(`${API_BASE}/voice/chat-turn`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -878,7 +1066,7 @@ export default function SalesCommandCenter() {
     setSaraLoadingPrompt(true);
 
     try {
-      const res = await fetch(`${API_BASE}/voice/prompt/${gate.opportunity_id}?contact_name=${encodeURIComponent(contactName)}&contact_role=${encodeURIComponent(contactRole)}`);
+      const res = await authFetch(`${API_BASE}/voice/prompt/${gate.opportunity_id}?contact_name=${encodeURIComponent(contactName)}&contact_role=${encodeURIComponent(contactRole)}`);
       if (res.ok) {
         const data = await res.json();
         setSaraPrompt(data.system_prompt || "");
@@ -899,7 +1087,7 @@ export default function SalesCommandCenter() {
     setSaraSimulationResult(null);
     try {
       const url = `${API_BASE}/voice/simulate/${saraTargetGate.opportunity_id}${saraPhone ? `?phone=${encodeURIComponent(saraPhone)}` : ""}`;
-      const res = await fetch(url, {
+      const res = await authFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" }
       });
@@ -921,7 +1109,7 @@ export default function SalesCommandCenter() {
     if (!saraTargetGate) return;
     setSaraDispatching(true);
     try {
-      const res = await fetch(`${API_BASE}/voice/dispatch`, {
+      const res = await authFetch(`${API_BASE}/voice/dispatch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -952,7 +1140,7 @@ export default function SalesCommandCenter() {
     setSaraSavingGate3(true);
     const source = saraSimulationResult || saraDispatchedJob;
     try {
-      const res = await fetch(`${API_BASE}/voice/report`, {
+      const res = await authFetch(`${API_BASE}/voice/report`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1044,7 +1232,7 @@ export default function SalesCommandCenter() {
     setRadarResult(null);
     try {
       if (apiConnected) {
-        const res = await fetch(`${API_BASE}/opportunities/hunt`, {
+        const res = await authFetch(`${API_BASE}/opportunities/hunt`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1107,7 +1295,7 @@ export default function SalesCommandCenter() {
     setQuickHunting(true);
     try {
       if (apiConnected) {
-        const res = await fetch(`${API_BASE}/opportunities/hunt`, {
+        const res = await authFetch(`${API_BASE}/opportunities/hunt`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1205,7 +1393,7 @@ export default function SalesCommandCenter() {
       }
 
       if (apiConnected) {
-        const res = await fetch(`${API_BASE}/opportunities/${oppId}/contacts`, {
+        const res = await authFetch(`${API_BASE}/opportunities/${oppId}/contacts`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(validContacts)
@@ -1338,7 +1526,7 @@ export default function SalesCommandCenter() {
       }
 
       if (editingServiceId) {
-        const res = await fetch(`${API_BASE}/catalog/service/${editingServiceId}`, {
+        const res = await authFetch(`${API_BASE}/catalog/service/${editingServiceId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1368,9 +1556,14 @@ export default function SalesCommandCenter() {
   const fetchPipelineData = async () => {
     try {
       const [gatesRes, oppsRes] = await Promise.all([
-        fetch(`${API_BASE}/gates/pending`).catch(() => null),
-        fetch(`${API_BASE}/opportunities/`).catch(() => null),
+        authFetch(`${API_BASE}/gates/pending`).catch(() => null),
+        authFetch(`${API_BASE}/opportunities/`).catch(() => null),
       ]);
+
+      if (gatesRes && gatesRes.status === 401) {
+        handleLogout();
+        return;
+      }
 
       if (gatesRes && gatesRes.ok) {
         const gatesData = await gatesRes.json();
@@ -1393,7 +1586,7 @@ export default function SalesCommandCenter() {
   // Cargar datos del Catálogo Oficial (solo al inicio o al guardar)
   const fetchCatalogData = async () => {
     try {
-      const catRes = await fetch(`${API_BASE}/catalog/`).catch(() => null);
+      const catRes = await authFetch(`${API_BASE}/catalog/`).catch(() => null);
       if (catRes && catRes.ok) {
         const catData = await catRes.json();
         setCatalog(catData);
@@ -1535,13 +1728,14 @@ export default function SalesCommandCenter() {
   };
 
   useEffect(() => {
+    if (!currentUser) return;
     fetchData();
     // Refrescar únicamente pipeline y compuertas en segundo plano para no sobreescribir el catálogo
     const interval = setInterval(() => {
       fetchPipelineData();
     }, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentUser]);
 
   // Manejar decisiones Human-in-the-Loop
   const handleDecision = async (oppId, action, feedback = null, modifications = null) => {
@@ -1555,7 +1749,7 @@ export default function SalesCommandCenter() {
       };
 
       if (apiConnected) {
-        const res = await fetch(`${API_BASE}/gates/${oppId}/decision`, {
+        const res = await authFetch(`${API_BASE}/gates/${oppId}/decision`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -1592,7 +1786,7 @@ export default function SalesCommandCenter() {
 
     try {
       if (apiConnected) {
-        const res = await fetch(`${API_BASE}/opportunities/`, {
+        const res = await authFetch(`${API_BASE}/opportunities/`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1650,6 +1844,296 @@ export default function SalesCommandCenter() {
         return <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-800">{gateType}</span>;
     }
   };
+
+  // Pantalla de carga mientras se verifica el token JWT inicial
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center text-white font-bold text-2xl shadow-xl shadow-blue-500/20 animate-pulse">
+            IN
+          </div>
+          <div className="flex items-center space-x-2 text-slate-300 text-sm">
+            <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
+            <span>Verificando sesión segura INNOVAIT...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Pantalla de Inicio de Sesión y 2FA si no hay usuario autenticado
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+        {/* Luces de ambiente decorativas */}
+        <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="w-full max-w-md relative z-10">
+          <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl shadow-black/40">
+            {/* Logotipo & Título */}
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-400 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-blue-500/20 mb-3">
+                IN
+              </div>
+              <h1 className="text-xl font-bold text-white tracking-tight">INNOVAIT Sales Engine</h1>
+              <p className="text-xs text-slate-400 mt-1">
+                Command Center B2B • Acceso Restringido & 2FA
+              </p>
+            </div>
+
+            {/* Banner de Error */}
+            {authError && (
+              <div className="mb-5 p-3 rounded-xl bg-rose-950/60 border border-rose-800/80 flex items-start space-x-2.5 text-xs text-rose-200">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{authError}</span>
+              </div>
+            )}
+
+            {/* PASO 1: CREDENCIALES (USUARIO Y CONTRASEÑA) */}
+            {authStep === "credentials" && (
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Usuario o Correo Corporativo
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={loginUsername}
+                      onChange={(e) => setLoginUsername(e.target.value)}
+                      placeholder="admin"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-800/80 border border-slate-700 rounded-xl text-white text-sm placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-2.5 text-slate-400 hover:text-slate-200"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={authLoading}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-600/25 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {authLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Verificando credenciales...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Key className="w-4 h-4" />
+                        <span>Iniciar Sesión</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="mt-4 p-3 rounded-xl bg-slate-800/40 border border-slate-800 text-[11px] text-slate-400 text-center">
+                  <span className="font-medium text-slate-300">Credenciales iniciales:</span>
+                  <div className="mt-0.5 font-mono text-slate-400">Usuario: <span className="text-cyan-400 font-semibold">admin</span> • Contraseña: <span className="text-cyan-400 font-semibold">AdminPassword2026!</span></div>
+                </div>
+              </form>
+            )}
+
+            {/* PASO 2A: ENROLAMIENTO 2FA (PRIMER INICIO) */}
+            {authStep === "2fa_setup" && (
+              <form onSubmit={handle2FASetupSubmit} className="space-y-4">
+                <div className="text-center mb-4">
+                  <div className="inline-flex p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mb-2">
+                    <QrCode className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-base font-bold text-white">Configurar Autenticador (2FA)</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Escanee este código con Google Authenticator o Microsoft Authenticator en su móvil.
+                  </p>
+                </div>
+
+                {/* Contenedor del Código QR */}
+                {authQrCodeUrl && (
+                  <div className="bg-white p-3 rounded-2xl shadow-inner mx-auto w-48 h-48 flex items-center justify-center border border-slate-700/50">
+                    <img
+                      src={authQrCodeUrl}
+                      alt="Código QR 2FA"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                )}
+
+                {/* Clave Secreta Manual */}
+                {authTotpSecret && (
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-medium text-slate-400 text-center">
+                      ¿No puede escanear? Ingrese esta clave manualmente en su app:
+                    </label>
+                    <div className="bg-slate-800/70 p-2 rounded-xl border border-slate-700 flex items-center justify-between text-xs font-mono text-cyan-300">
+                      <span className="truncate mr-2 select-all">{authTotpSecret}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (navigator?.clipboard) {
+                            navigator.clipboard.writeText(authTotpSecret);
+                            setSecretCopied(true);
+                            setTimeout(() => setSecretCopied(false), 2000);
+                          }
+                        }}
+                        className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-white rounded text-[10px] font-sans flex items-center space-x-1 shrink-0 cursor-pointer"
+                      >
+                        {secretCopied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{secretCopied ? "Copiada" : "Copiar"}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Input de 6 dígitos */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 text-center">
+                    Código de 6 dígitos que muestra su app
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    required
+                    value={authTotpCode}
+                    onChange={(e) => setAuthTotpCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="000000"
+                    className="w-full text-center text-2xl font-mono tracking-widest py-2.5 bg-slate-800/90 border border-slate-700 text-white rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={authLoading || authTotpCode.length < 6}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {authLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Validando código 2FA...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Activar 2FA e Ingresar</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthStep("credentials");
+                      setAuthError("");
+                      setAuthTotpCode("");
+                    }}
+                    className="w-full py-2 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    ← Volver a inicio de sesión
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* PASO 2B: VERIFICACIÓN 2FA (INICIOS POSTERIORES) */}
+            {authStep === "2fa_verify" && (
+              <form onSubmit={handle2FAVerifySubmit} className="space-y-4">
+                <div className="text-center mb-4">
+                  <div className="inline-flex p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mb-2">
+                    <ShieldCheck className="w-8 h-8" />
+                  </div>
+                  <h2 className="text-base font-bold text-white">Verificación en Dos Pasos (2FA)</h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Abra Google Authenticator en su móvil e ingrese el código de 6 dígitos.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 text-center">
+                    Código de Seguridad
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    required
+                    value={authTotpCode}
+                    onChange={(e) => setAuthTotpCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="000000"
+                    className="w-full text-center text-3xl font-mono tracking-[0.4em] py-3 bg-slate-800/90 border border-slate-700 text-white rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={authLoading || authTotpCode.length < 6}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-600/25 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 cursor-pointer"
+                  >
+                    {authLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Verificando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Verificar y Entrar</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthStep("credentials");
+                      setAuthError("");
+                      setAuthTotpCode("");
+                    }}
+                    className="w-full py-2 text-xs text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                  >
+                    ← Volver a inicio de sesión
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -1716,6 +2200,32 @@ export default function SalesCommandCenter() {
               <Plus className="w-4 h-4" />
               <span>Nuevo Prospecto</span>
             </button>
+
+            {/* Perfil de Usuario Autenticado & Botón de Salir */}
+            <div className="flex items-center space-x-3 pl-3 border-l border-slate-200">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                  {currentUser?.name ? currentUser.name.substring(0, 2).toUpperCase() : "AD"}
+                </div>
+                <div className="hidden sm:block text-left">
+                  <p className="text-xs font-semibold text-slate-800 leading-tight">
+                    {currentUser?.name || "Administrador"}
+                  </p>
+                  <span className="inline-flex items-center space-x-1 text-[10px] text-emerald-600 font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>2FA Activo</span>
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-red-200 hover:bg-red-50 text-slate-600 hover:text-red-600 text-xs font-medium transition-all cursor-pointer"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Salir</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -4404,7 +4914,7 @@ export default function SalesCommandCenter() {
                         onClick={async () => {
                           setSaraLoadingPrompt(true);
                           try {
-                            const res = await fetch(`${API_BASE}/voice/prompt/${saraTargetGate.opportunity_id}?contact_name=${encodeURIComponent(saraContactName)}&contact_role=${encodeURIComponent(saraContactRole)}&custom_instructions=${encodeURIComponent(saraCustomInstructions)}`);
+                            const res = await authFetch(`${API_BASE}/voice/prompt/${saraTargetGate.opportunity_id}?contact_name=${encodeURIComponent(saraContactName)}&contact_role=${encodeURIComponent(saraContactRole)}&custom_instructions=${encodeURIComponent(saraCustomInstructions)}`);
                             if (res.ok) {
                               const d = await res.json();
                               setSaraPrompt(d.system_prompt || "");
@@ -4666,6 +5176,34 @@ export default function SalesCommandCenter() {
               {/* SUBTAB: HABLAR EN VIVO CON SARA (MICRÓFONO INTERACTIVO) */}
               {saraActiveSubTab === "live" && (
                 <div className="space-y-4">
+                  {/* Detección de Conexión HTTP Remota en AWS (Restricción de Seguridad del Navegador para el Micrófono) */}
+                  {typeof window !== "undefined" && !window.isSecureContext && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && (
+                    <div className="p-4 bg-gradient-to-r from-amber-50 to-amber-100/70 border border-amber-300 rounded-2xl flex items-start space-x-3 text-amber-950 text-xs shadow-sm">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">
+                        🔒
+                      </div>
+                      <div className="space-y-1">
+                        <strong className="block text-amber-950 font-bold text-sm">
+                          Restricción del Navegador: Conexión HTTP sin SSL en AWS
+                        </strong>
+                        <p className="text-amber-900 leading-relaxed">
+                          Google Chrome y Edge <strong>bloquean la entrada del micrófono</strong> cuando una aplicación se abre en una IP remota por <code>http://</code> en lugar de <code>https://</code>. Por eso escuchas a Sara con nitidez, pero tu voz no sale del navegador.
+                        </p>
+                        <div className="mt-2 p-2.5 bg-amber-200/50 rounded-xl text-amber-950 space-y-1">
+                          <p className="font-bold">💡 Para activar el micrófono en esta IP de prueba en 30 segundos:</p>
+                          <p className="text-[11px] leading-relaxed">
+                            1. Abre en otra pestaña de Chrome: <code className="bg-white/80 px-1 py-0.5 rounded font-mono select-all">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code><br/>
+                            2. Agrega la URL de tu app en AWS: <code className="bg-white/80 px-1 py-0.5 rounded font-mono select-all">{typeof window !== "undefined" ? window.location.origin : "http://IP:3000"}</code><br/>
+                            3. Cambia a <strong>Enabled</strong> y presiona <strong>Relaunch</strong> (Reiniciar).
+                          </p>
+                        </div>
+                        <p className="text-amber-800 text-[11px] font-medium pt-0.5">
+                          👉 O si prefieres probar de inmediato sin configurar el navegador, utiliza los <strong>Atajos rápidos</strong> o escribe en el <strong>campo de texto</strong> inferior.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Detección de Compatibilidad de Navegador (Firefox / Opera vs Chrome / Edge) */}
                   {typeof window !== "undefined" && !window.SpeechRecognition && !window.webkitSpeechRecognition && (
                     <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-2xl flex items-start space-x-3 text-amber-950 text-xs shadow-sm">
@@ -4677,7 +5215,7 @@ export default function SalesCommandCenter() {
                           Navegador sin reconocimiento de voz por micrófono (Firefox / Opera)
                         </strong>
                         <p className="text-amber-800 mt-1 leading-relaxed">
-                          <strong>Firefox</strong> y <strong>Opera</strong> tienen desactivada de fábrica la API de reconocimiento de voz (Web Speech API). Para que Sara te escuche directamente por el micrófono al hablarle, por favor abre <strong>http://localhost:3000</strong> en <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong>.
+                          <strong>Firefox</strong> y <strong>Opera</strong> tienen desactivada de fábrica la API de reconocimiento de voz (Web Speech API). Para que Sara te escuche directamente por el micrófono al hablarle, por favor abre la aplicación en <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong>.
                         </p>
                         <p className="text-amber-900 font-semibold mt-1.5 flex items-center space-x-1">
                           <span>💡 En este navegador puedes interactuar con los botones de</span>
