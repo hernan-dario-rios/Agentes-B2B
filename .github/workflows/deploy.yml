@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-aws-ec2
+  group: ${{ github.workflow }}-${{ github.run_id }}
   cancel-in-progress: true
 
 jobs:
