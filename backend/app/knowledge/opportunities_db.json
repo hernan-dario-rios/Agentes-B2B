@@ -774,5 +774,56 @@
     "last_human_feedback": null,
     "created_at": "2026-11-04T15:38:01.950885Z",
     "updated_at": "2026-11-04T15:38:01.955603Z"
+  },
+  {
+    "opportunity_id": "opp_demo_e2e",
+    "company_name": "[DEMO E2E] Soluciones Andinas Logística S.A.S.",
+    "website": "https://andinaslogistica.com",
+    "country": "Colombia",
+    "tax_id": "901.442.889-3",
+    "address": "Zona Industrial Guayabal, Medellín, Antioquia",
+    "target_services": [
+      "DOC_MANAGER",
+      "DATA_HYGIENE",
+      "CLOUD_INFRA",
+      "AI_AUTOMATION"
+    ],
+    "stage": "WAITING_HUMAN_APPROVAL",
+    "current_gate": "GATE_1_TARGET",
+    "icp_data": {
+      "industry": "Logística, Transporte & Comercio B2B",
+      "size_employees": 350,
+      "annual_revenue_range": "10M - 25M USD",
+      "current_stack": [
+        "ERP Contable Local / SQL Server",
+        "Planillas Excel Compartidas en Red",
+        "Archivo Físico de Remesas en Bodega"
+      ],
+      "pain_points": [
+        "Descentralización y pérdida de remesas físicas y facturas CUFE",
+        "Duplicidad en bases de datos de clientes y remitentes entre sedes",
+        "Servidores locales sin respaldo seguro en nube ni contingencia"
+      ],
+      "fit_score": 94,
+      "icp_reasoning": "Ajuste ideal para DocumentTrack + Data Hygiene + Cloud Infra con alto retorno de inversión."
+    },
+    "contacts": [
+      {
+        "name": "Hernán Ríos",
+        "role": "Director de Operaciones & TI",
+        "email": "hernan.rios@andinaslogistica.co",
+        "linkedin_url": "https://www.linkedin.com/in/hernan-rios",
+        "phone": "+57 (604) 480 9000",
+        "status": "PENDING_CONTACT"
+      }
+    ],
+    "outreach": null,
+    "discovery": null,
+    "solution_proposal": null,
+    "contract": null,
+    "gate_history": [],
+    "last_human_feedback": null,
+    "created_at": "2026-11-12T18:35:10.717766Z",
+    "updated_at": "2026-11-12T18:35:10.717773Z"
   }
 ]

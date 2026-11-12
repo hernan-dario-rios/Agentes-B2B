@@ -124,6 +124,68 @@ class OpportunityService:
         self._save_db()
         return opp
 
+    def seed_demo_opportunity(self) -> OpportunityContext:
+        """
+        Crea o reinicia una oportunidad de prueba integral ('opp_demo_e2e') en Gate 1
+        para permitir demostraciones completas del ciclo de ventas y llamadas con Sara.
+        """
+        opp_id = "opp_demo_e2e"
+        demo_opp = OpportunityContext(
+            opportunity_id=opp_id,
+            company_name="[DEMO E2E] Soluciones Andinas Logística S.A.S.",
+            website="https://andinaslogistica.com",
+            country="Colombia",
+            tax_id="901.442.889-3",
+            address="Zona Industrial Guayabal, Medellín, Antioquia",
+            target_services=[
+                ServiceCategory.DOC_MANAGER,
+                ServiceCategory.DATA_HYGIENE,
+                ServiceCategory.CLOUD_INFRA,
+                ServiceCategory.AI_AUTOMATION,
+            ],
+            stage=PipelineStage.WAITING_HUMAN_APPROVAL,
+            current_gate=GateType.GATE_1_TARGET,
+            icp_data=ICPData(
+                industry="Logística, Transporte & Comercio B2B",
+                size_employees=350,
+                annual_revenue_range="10M - 25M USD",
+                current_stack=[
+                    "ERP Contable Local / SQL Server",
+                    "Planillas Excel Compartidas en Red",
+                    "Archivo Físico de Remesas en Bodega",
+                ],
+                pain_points=[
+                    "Descentralización y pérdida de remesas físicas y facturas CUFE",
+                    "Duplicidad en bases de datos de clientes y remitentes entre sedes",
+                    "Servidores locales sin respaldo seguro en nube ni contingencia",
+                ],
+                fit_score=94,
+                icp_reasoning="Ajuste ideal para DocumentTrack + Data Hygiene + Cloud Infra con alto retorno de inversión.",
+            ),
+            contacts=[
+                ContactPerson(
+                    name="Hernán Ríos",
+                    role="Director de Operaciones & TI",
+                    email="hernan.rios@andinaslogistica.co",
+                    phone="+57 (604) 480 9000",
+                    linkedin_url="https://www.linkedin.com/in/hernan-rios",
+                    status="PENDING_CONTACT",
+                )
+            ],
+            outreach=None,
+            discovery=None,
+            solution_proposal=None,
+            contract=None,
+            gate_history=[],
+            last_human_feedback=None,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+        self.opportunities[opp_id] = demo_opp
+        self._save_db()
+        logger.info(f"[OpportunityService] Oportunidad demo sembrada/reiniciada: {opp_id}")
+        return demo_opp
+
     def get_opportunity(self, opp_id: str) -> Optional[OpportunityContext]:
         self._check_and_reload()
         # Consultar estado actual del hilo en LangGraph

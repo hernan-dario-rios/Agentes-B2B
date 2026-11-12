@@ -39,6 +39,15 @@ def hunt_opportunities(req: HuntLeadsRequest):
     return hunter_service.hunt_leads(req)
 
 
+@router.post("/seed-demo", response_model=OpportunityContext)
+def seed_demo_opportunity():
+    """
+    Siembra o reinicia el prospecto de prueba integral ('[DEMO E2E] Soluciones Andinas Logística S.A.S.')
+    en Gate 1 (Validación de Target) para demostraciones completas del ciclo de ventas y llamadas con Sara.
+    """
+    return opportunity_service.seed_demo_opportunity()
+
+
 @router.post("/", response_model=OpportunityContext, status_code=201)
 def create_opportunity(req: CreateOpportunityRequest):
     """

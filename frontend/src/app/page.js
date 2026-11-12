@@ -1324,6 +1324,36 @@ export default function SalesCommandCenter() {
     }
   };
 
+  // Sembrar / Reiniciar Prospecto Demo Integral para pruebas E2E con Sara
+  const [seedingDemo, setSeedingDemo] = useState(false);
+
+  const handleSeedDemoOpportunity = async () => {
+    setSeedingDemo(true);
+    try {
+      if (apiConnected) {
+        const res = await authFetch(`${API_BASE}/opportunities/seed-demo`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        if (res.ok) {
+          await fetchData();
+          setActiveTab("inbox");
+          alert("🧪 ¡Prospecto Demo E2E listo!\n\nSe ha creado/reiniciado '[DEMO E2E] Soluciones Andinas Logística S.A.S.' en Gate 1 (Validación Target).\n\nFlujo sugerido:\n1. Revisa y aprueba Gate 1 -> Avanza a Gate 2.\n2. En Gate 2 abre '📞 Llamar con Sara' -> Ve a la pestaña 'Llamada Interactiva' y habla con Sara por micrófono.\n3. Al finalizar, guarda los hallazgos -> Pasa a Gate 3 (BANT).\n4. Aprueba Gate 3 -> Genera cotización en Gate 4.\n5. Aprueba Gate 4 -> Emite contrato en Gate 5 hasta Venta Ganada (WON).");
+        } else {
+          const err = await res.json().catch(() => ({}));
+          alert(`Error sembrando prospecto demo: ${err.detail || "No fue posible crear el prospecto de prueba."}`);
+        }
+      } else {
+        alert("El backend no está conectado en este momento. Verifique la conexión.");
+      }
+    } catch (e) {
+      console.error("Error sembrando prospecto demo:", e);
+      alert(`Error al contactar al orquestador: ${e.message}`);
+    } finally {
+      setSeedingDemo(false);
+    }
+  };
+
   // Modal Edición de Contactos
   const [editContactsModalOpen, setEditContactsModalOpen] = useState(false);
   const [editContactsTarget, setEditContactsTarget] = useState(null);
@@ -2194,6 +2224,25 @@ export default function SalesCommandCenter() {
             </button>
 
             <button
+              onClick={handleSeedDemoOpportunity}
+              disabled={seedingDemo}
+              className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white text-sm font-bold shadow-sm shadow-indigo-500/20 transition-all cursor-pointer disabled:opacity-50"
+              title="Sembrar o reiniciar prospecto de prueba integral ('Soluciones Andinas Logística') en Gate 1 para probar todo el ciclo comercial y llamadas interactivas con Sara"
+            >
+              {seedingDemo ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin text-purple-200" />
+                  <span>Cargando Demo...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>🧪 Demo E2E (Llamada Sara)</span>
+                </>
+              )}
+            </button>
+
+            <button
               onClick={() => setNewOppModalOpen(true)}
               className="inline-flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-sm transition-all cursor-pointer"
             >
@@ -2397,6 +2446,14 @@ export default function SalesCommandCenter() {
                   >
                     <Compass className="w-4 h-4 text-emerald-100" />
                     <span>🛰️ Activar Radar de Prospección</span>
+                  </button>
+                  <button
+                    onClick={handleSeedDemoOpportunity}
+                    disabled={seedingDemo}
+                    className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-violet-700 hover:from-purple-700 hover:to-violet-800 text-white text-sm font-bold shadow-sm shadow-indigo-500/20 cursor-pointer disabled:opacity-50"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span>🧪 Cargar Demo E2E (Llamada Sara)</span>
                   </button>
                   <button
                     onClick={() => setNewOppModalOpen(true)}
