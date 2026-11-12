@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, HTTPException
-from app.schemas.gate import GateDecisionPayload, PendingGateSummary
+from app.schemas.gate import GateDecisionPayload, PendingGateSummary, RegressGateRequest
 from app.schemas.opportunity import OpportunityContext
 from app.services.opportunity_service import opportunity_service
 
@@ -31,3 +31,20 @@ def submit_gate_decision(opp_id: str, payload: GateDecisionPayload):
             detail="No fue posible aplicar la decisión o la oportunidad no está en espera de aprobación."
         )
     return updated_opp
+
+
+@router.post("/{opp_id}/regress", response_model=OpportunityContext)
+def regress_gate(opp_id: str, payload: RegressGateRequest):
+    """
+    Devuelve un prospecto a una compuerta previa (ej: de Gate 4 a Gate 2 o Gate 3).
+    Permite re-evaluar o re-ejecutar etapas previas si cambiaron los requerimientos del cliente.
+    """
+    try:
+        return opportunity_service.regress_opportunity_gate(
+            opp_id=opp_id,
+            target_gate=payload.target_gate,
+            reason=payload.reason,
+            user_name=payload.user_name
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

@@ -12,7 +12,7 @@
       "CLOUD_INFRA"
     ],
     "stage": "WAITING_HUMAN_APPROVAL",
-    "current_gate": "GATE_3_DISCOVERY",
+    "current_gate": "GATE_1_TARGET",
     "icp_data": {
       "industry": "Servicios Financieros / Cooperativo",
       "size_employees": 850,
@@ -141,11 +141,19 @@
         "feedback": null,
         "timestamp": "2026-10-28T21:51:41.524079Z",
         "snapshot": null
+      },
+      {
+        "gate_type": "GATE_3_DISCOVERY",
+        "action": "REGRESS",
+        "user_name": "Administrador INNOVAIT",
+        "feedback": "El contacto se debe verificar mas",
+        "timestamp": "2026-11-12T20:45:15.065481Z",
+        "snapshot": null
       }
     ],
-    "last_human_feedback": null,
+    "last_human_feedback": "El contacto se debe verificar mas",
     "created_at": "2026-10-28T14:55:26Z",
-    "updated_at": "2026-10-28T21:51:41.525824Z"
+    "updated_at": "2026-11-12T20:45:15.065777Z"
   },
   {
     "opportunity_id": "opp_20261028153000_002",
@@ -821,9 +829,42 @@
     "discovery": null,
     "solution_proposal": null,
     "contract": null,
-    "gate_history": [],
-    "last_human_feedback": null,
+    "gate_history": [
+      {
+        "gate_type": "GATE_4_ARCHITECT",
+        "action": "REGRESS",
+        "user_name": "Director Comercial (Comando Central)",
+        "feedback": "Cliente cambió de interlocutor en operaciones, repetir llamada con Sara",
+        "timestamp": "2026-11-12T20:35:44.543277Z",
+        "snapshot": null
+      },
+      {
+        "gate_type": "GATE_2_OUTREACH",
+        "action": "REGRESS",
+        "user_name": "Director Comercial (Comando Central)",
+        "feedback": "Reiniciado a Gate 1",
+        "timestamp": "2026-11-12T20:35:44.634826Z",
+        "snapshot": null
+      },
+      {
+        "gate_type": "GATE_4_ARCHITECT",
+        "action": "REGRESS",
+        "user_name": "Director Comercial (Comando Central)",
+        "feedback": "Devolución de prueba: rehacer contacto con Sara",
+        "timestamp": "2026-11-12T20:41:08.263819Z",
+        "snapshot": null
+      },
+      {
+        "gate_type": "GATE_2_OUTREACH",
+        "action": "REGRESS",
+        "user_name": "Director Comercial (Comando Central)",
+        "feedback": "Reset a Gate 1",
+        "timestamp": "2026-11-12T20:41:08.328009Z",
+        "snapshot": null
+      }
+    ],
+    "last_human_feedback": "Reset a Gate 1",
     "created_at": "2026-11-12T18:35:10.717766Z",
-    "updated_at": "2026-11-12T18:35:10.717773Z"
+    "updated_at": "2026-11-12T20:41:08.328030Z"
   }
 ]

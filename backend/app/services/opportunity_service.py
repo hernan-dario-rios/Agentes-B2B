@@ -481,6 +481,26 @@ class OpportunityService:
         self._save_db()
         return updated_opp
 
+    def regress_opportunity_gate(
+        self,
+        opp_id: str,
+        target_gate: GateType,
+        reason: str,
+        user_name: str = "Director Comercial (Comando Central)"
+    ) -> OpportunityContext:
+        """Devuelve un prospecto a una compuerta previa con registro de auditoría."""
+        self._check_and_reload()
+        if opp_id not in self.opportunities:
+            raise ValueError(f"Oportunidad con ID '{opp_id}' no encontrada.")
+        opp = self.opportunities[opp_id]
+        payload = GateDecisionPayload(
+            action=GateAction.REGRESS,
+            target_gate=target_gate,
+            feedback=reason,
+            user_name=user_name
+        )
+        return self._advance_gate_deterministic(opp, payload)
+
     def _advance_gate_deterministic(
         self,
         opp: OpportunityContext,
@@ -507,6 +527,24 @@ class OpportunityService:
         # 2. OVERRIDE: Toma de control manual del flujo
         if action == GateAction.OVERRIDE:
             opp.stage = PipelineStage.MANUAL_TAKEOVER
+            return opp
+
+        # 3. REGRESS: Devolver la oportunidad a una compuerta previa
+        if action == GateAction.REGRESS:
+            target = payload.target_gate
+            if not target and modifications and modifications.get("target_gate"):
+                try:
+                    target = GateType(modifications["target_gate"])
+                except Exception:
+                    pass
+            if not target:
+                raise ValueError("Se requiere especificar 'target_gate' para la acción REGRESS")
+            
+            logger.info(f"[OpportunityService] Devolviendo {opp.opportunity_id} de {current_gate} a {target} (Motivo: {feedback})")
+            opp.current_gate = target
+            opp.stage = PipelineStage.WAITING_HUMAN_APPROVAL
+            opp.last_human_feedback = feedback
+            self._save_db()
             return opp
 
         # 3. MODIFY: Aplicar feedback y re-ejecutar el agente actual

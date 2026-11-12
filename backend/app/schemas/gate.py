@@ -16,6 +16,7 @@ class GateAction(str, Enum):
     APPROVE = "APPROVE"
     MODIFY = "MODIFY"
     OVERRIDE = "OVERRIDE"
+    REGRESS = "REGRESS"
 
 
 class GateStatus(str, Enum):
@@ -23,19 +24,27 @@ class GateStatus(str, Enum):
     APPROVED = "APPROVED"
     MODIFIED = "MODIFIED"
     OVERRIDDEN = "OVERRIDDEN"
+    REGRESSED = "REGRESSED"
 
 
 class GateDecisionPayload(BaseModel):
-    action: GateAction = Field(..., description="Acción seleccionada por el humano: APPROVE, MODIFY u OVERRIDE")
+    action: GateAction = Field(..., description="Acción seleccionada por el humano: APPROVE, MODIFY, OVERRIDE o REGRESS")
+    target_gate: Optional[GateType] = Field(None, description="Compuerta de destino (requerido si action es REGRESS)")
     feedback: Optional[str] = Field(
         None, 
-        description="Instrucciones o retroalimentación humana para regenerar la tarea (requerido si action es MODIFY)"
+        description="Instrucciones o retroalimentación humana para regenerar la tarea (requerido si action es MODIFY o REGRESS)"
     )
     modifications: Optional[Dict[str, Any]] = Field(
         None, 
         description="Ajustes explícitos directos (ej. descuento manual, cambio de fecha o término)"
     )
     user_name: str = Field(default="Comercial / Revisor Humano")
+
+
+class RegressGateRequest(BaseModel):
+    target_gate: GateType = Field(..., description="Compuerta previa hacia la cual retroceder la oportunidad")
+    reason: str = Field(..., description="Motivo comercial o técnico de la devolución")
+    user_name: str = Field(default="Director Comercial (Comando Central)")
 
 
 class GateHistoryRecord(BaseModel):

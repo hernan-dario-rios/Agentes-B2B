@@ -61,7 +61,8 @@ import {
   LogOut,
   QrCode,
   EyeOff,
-  Smartphone
+  Smartphone,
+  RotateCcw
 } from "lucide-react";
 
 // Endpoint de API con Reverse Proxy nativo de Next.js (Mismo origen / sin bloqueos de puerto 8000 ni CORS)
@@ -324,6 +325,66 @@ export default function SalesCommandCenter() {
   const [modifyTarget, setModifyTarget] = useState(null);
   const [feedbackText, setFeedbackText] = useState("");
   const [discountValue, setDiscountValue] = useState("");
+
+  // Modal de Devolución / Retroceso de Gate
+  const [regressModalOpen, setRegressModalOpen] = useState(false);
+  const [regressTarget, setRegressTarget] = useState(null);
+  const [regressTargetGate, setRegressTargetGate] = useState("");
+  const [regressReason, setRegressReason] = useState("");
+  const [regressingGate, setRegressingGate] = useState(false);
+
+  const getAvailablePreviousGates = (currentGate) => {
+    const allGates = [
+      { id: "GATE_1_TARGET", label: "Gate 1: Validación de Target / ICP (Enricher)" },
+      { id: "GATE_2_OUTREACH", label: "Gate 2: Outreach Multicanal & Llamada con Sara" },
+      { id: "GATE_3_DISCOVERY", label: "Gate 3: Validación Alcance BANT (Discovery)" },
+      { id: "GATE_4_ARCHITECT", label: "Gate 4: Arquitectura de Soluciones & Pricing" },
+      { id: "GATE_5_LEGAL", label: "Gate 5: Firma & Términos Legales (SOW / MSA)" }
+    ];
+    const order = ["GATE_1_TARGET", "GATE_2_OUTREACH", "GATE_3_DISCOVERY", "GATE_4_ARCHITECT", "GATE_5_LEGAL"];
+    const currentIndex = order.indexOf(currentGate);
+    if (currentIndex <= 0) return [];
+    return allGates.filter((g, idx) => idx < currentIndex).reverse();
+  };
+
+  const handleOpenRegressModal = (gate) => {
+    setRegressTarget(gate);
+    const prevGates = getAvailablePreviousGates(gate.gate_type);
+    setRegressTargetGate(prevGates[0]?.id || "GATE_1_TARGET");
+    setRegressReason("");
+    setRegressModalOpen(true);
+  };
+
+  const handleRegressGateSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!regressTarget || !regressTargetGate) return;
+    setRegressingGate(true);
+    try {
+      const res = await authFetch(`${API_BASE}/gates/${regressTarget.opportunity_id}/regress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target_gate: regressTargetGate,
+          reason: regressReason || "Devolución solicitada por Director Comercial para recalificar o repetir etapa.",
+          user_name: currentUser?.name || "Director Comercial (Comando Central)"
+        })
+      });
+      if (res.ok) {
+        await fetchData();
+        setRegressModalOpen(false);
+        setRegressTarget(null);
+        setRegressReason("");
+        alert(`⏪ ¡Prospecto devuelto exitosamente a ${regressTargetGate}!\n\nSe ha colocado en espera de aprobación humana en su nueva compuerta.`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Error al devolver prospecto: ${err.detail || "Error en el servidor"}`);
+      }
+    } catch (err) {
+      alert(`Error de comunicación: ${err.message}`);
+    } finally {
+      setRegressingGate(false);
+    }
+  };
 
   // Modal de Confirmación de Envío en Gate 2 (Outreach desde Outlook o WhatsApp)
   const [confirmOutreachModalOpen, setConfirmOutreachModalOpen] = useState(false);
@@ -3215,6 +3276,18 @@ export default function SalesCommandCenter() {
                           </>
                         )}
 
+                        {/* Botón de Devolución a Gate anterior (solo visible si no es Gate 1) */}
+                        {gate.gate_type !== "GATE_1_TARGET" && (
+                          <button
+                            onClick={() => handleOpenRegressModal(gate)}
+                            className="px-3.5 py-2 rounded-xl text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 transition-all flex items-center space-x-1.5 cursor-pointer"
+                            title="Devolver este prospecto a una compuerta anterior (ej. rehacer llamada o recalificar BANT)"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Devolver de Gate</span>
+                          </button>
+                        )}
+
                         <button
                           onClick={() => {
                             setModifyTarget(gate);
@@ -3454,6 +3527,101 @@ export default function SalesCommandCenter() {
           </div>
         )}
       </main>
+
+      {/* MODAL: DEVOLVER PROSPECTO A COMPUERTA PREVIA (REGRESS / ROLLBACK) */}
+      {regressModalOpen && regressTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-center space-x-3 pb-3 border-b border-slate-100">
+              <div className="w-10 h-10 rounded-2xl bg-violet-100 text-violet-700 flex items-center justify-center font-bold">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Devolver Prospecto a Compuerta Anterior
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {regressTarget.company_name} • Actualmente en: <span className="font-semibold text-slate-800">{regressTarget.gate_type}</span>
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleRegressGateSubmit} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                  Selecciona la compuerta de destino:
+                </label>
+                <select
+                  value={regressTargetGate}
+                  onChange={(e) => setRegressTargetGate(e.target.value)}
+                  className="w-full text-xs font-medium p-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none cursor-pointer"
+                  required
+                >
+                  {getAvailablePreviousGates(regressTarget.gate_type).map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  El prospecto retrocederá de inmediato a esta fase para que los agentes o humanos repitan el paso.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1.5">
+                  Motivo comercial o técnico de la devolución:
+                </label>
+                <textarea
+                  value={regressReason}
+                  onChange={(e) => setRegressReason(e.target.value)}
+                  placeholder="Ej: El cliente solicitó nueva llamada telefónica con Sara para validar cambio de director de operaciones, o se ajustaron los requerimientos y toca recalificar BANT."
+                  rows={3}
+                  required
+                  className="w-full text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="p-3 bg-violet-50 border border-violet-100 rounded-2xl text-[11px] text-violet-900 flex items-start space-x-2">
+                <Info className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
+                <span>
+                  Esta acción quedará registrada en el historial de auditoría inmutable de la oportunidad para total trazabilidad del equipo comercial.
+                </span>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegressModalOpen(false);
+                    setRegressTarget(null);
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={regressingGate || !regressReason.trim()}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-md transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
+                >
+                  {regressingGate ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Devolviendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Confirmar Retroceso de Gate</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: EDITAR / RETROALIMENTAR (MODIFY) */}
       {modifyModalOpen && modifyTarget && (
